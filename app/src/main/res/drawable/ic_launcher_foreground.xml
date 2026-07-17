@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Простой силуэт автомобиля жёлтым акцентом по центру безопасной зоны -->
+    <path
+        android:fillColor="#FFCC00"
+        android:pathData="M30,58 L34,46 C35,43 38,41 41,41 L67,41 C70,41 73,43 74,46 L78,58 L78,70 C78,72 76,74 74,74 L72,74 C70,74 68,72 68,70 L68,68 L40,68 L40,70 C40,72 38,74 36,74 L34,74 C32,74 30,72 30,70 Z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M38,58 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M70,58 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+</vector>

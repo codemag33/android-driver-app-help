@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DriverApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/uber_green</item>
+        <item name="colorPrimaryVariant">@color/uber_black</item>
+        <item name="colorOnPrimary">@color/uber_black</item>
+        <item name="colorSecondary">@color/uber_yellow</item>
+        <item name="colorOnSecondary">@color/uber_black</item>
+        <item name="android:windowBackground">@color/uber_black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ─── Разрешения ────────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+        Package visibility (Android 11+/API 30+): без этого блока
+        resolveActivity()/queryIntentActivities() для чужих пакетов
+        всегда возвращает null, даже если Яндекс Навигатор установлен —
+        приложение будет считать, что его нет, и вести на Google Play.
+    -->
+    <queries>
+        <package android:name="ru.yandex.yandexnavi" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="yandexnavi" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.DriverApp">
+
+        <!-- ─── Главная Activity ──────────────────────────────────────────── -->
+        <!--
+            supportsPictureInPicture — разрешает PiP-режим.
+            configChanges — без перечисленных изменений Android НЕ пересоздаёт
+            Activity при смене ориентации / размера окна (критично для PiP).
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:launchMode="singleTop">
+
+            <!-- Deep-link для возврата из Яндекс Навигатора -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Схема tuarip://trip_ended — Яндекс Навигатор вызовет этот URI
+                через параметр back_url после завершения маршрута.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tuarip" android:host="trip_ended" />
+            </intent-filter>
+        </activity>
+
+        <!-- ─── BroadcastReceiver для кнопки PiP «Завершить заказ» ──────── -->
+        <!--
+            android:exported="false" — принимает только внутренние Intent-ы
+            от нашего приложения, не доступен внешним приложениям.
+        -->
+        <receiver
+            android:name=".PipActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.driver.app.ACTION_FINISH_ORDER" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

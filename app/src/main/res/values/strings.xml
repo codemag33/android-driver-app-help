@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Водитель Про</string>
+
+    <!-- ─── Map ─────────────────────────────────────────────────────────────── -->
+    <string name="dest_pin_description">Точка на карте</string>
+
+    <!-- ─── Search ───────────────────────────────────────────────────────────── -->
+    <string name="search_hint">Куда ехать?</string>
+    <string name="hint_point_a">Откуда забрать</string>
+    <string name="hint_point_b">Куда везти</string>
+    <string name="search_point_a">Найти адрес точки А</string>
+    <string name="search_point_b">Найти адрес точки Б</string>
+    <string name="pin_point_a">Указать точку А на карте</string>
+    <string name="pin_point_b">Указать точку Б на карте</string>
+    <string name="confirm_pin">Подтвердить</string>
+    <string name="close_search">Закрыть поиск</string>
+    <string name="my_location">Моё местоположение</string>
+    <string name="recent_searches">Недавние адреса</string>
+
+    <!-- ─── Route inputs ─────────────────────────────────────────────────────── -->
+    <string name="dest_address_placeholder">Выберите точку назначения</string>
+    <string name="route_set">Маршрут задан</string>
+    <string name="where_to">Куда везти?</string>
+    <string name="where_go">Куда ехать?</string>
+
+    <!-- ─── Trip phases ──────────────────────────────────────────────────────── -->
+    <string name="trip_ready">Готов</string>
+    <string name="trip_select_points">Выберите точки</string>
+    <string name="trip_passenger_in_car">Клиент в машине</string>
+    <string name="trip_driving_to_pickup">Едем за клиентом</string>
+    <string name="trip_driving_with_passenger">Везём клиента</string>
+    <string name="trip_update_route">Обновить маршрут</string>
+    <string name="go_button">Поехали</string>
+
+    <!-- ─── Navigation ───────────────────────────────────────────────────────── -->
+    <string name="nav_yandex_not_installed">Яндекс Навигатор не установлен</string>
+
+    <!-- ─── Toasts ───────────────────────────────────────────────────────────── -->
+    <string name="toast_location_permission_denied">Без доступа к геолокации карта не покажет ваше текущее местоположение</string>
+    <string name="toast_no_location_access">Нет доступа к геолокации</string>
+    <string name="toast_location_not_determined">Местоположение ещё не определено</string>
+    <string name="toast_server_connected">Подключено к серверу</string>
+    <string name="toast_server_error">Нет связи с сервером (%1$s): %2$s</string>
+    <string name="toast_passenger_finished">Пассажир завершил поездку</string>
+    <string name="toast_passenger_disconnected">Пассажир отключился</string>
+    <string name="toast_select_both_points">Сначала выберите точки А и Б</string>
+    <string name="toast_order_finished">Заказ завершён</string>
+    <string name="toast_move_map_confirm">Двигайте карту и нажмите «Подтвердить»</string>
+    <string name="toast_map_not_ready">Карта ещё не готова</string>
+    <string name="toast_no_active_ride">Нет активной поездки</string>
+    <string name="toast_trip_completed">Маршрут завершён. Вернулись в приложение.</string>
+    <string name="toast_server_saved">Сервер: %1$s</string>
+
+    <!-- ─── PiP ──────────────────────────────────────────────────────────────── -->
+    <string name="pip_order_in_progress">Заказ выполняется…</string>
+    <string name="pip_driving_to_pickup">Едем за клиентом…</string>
+    <string name="pip_driving_with_passenger">Везём клиента…</string>
+    <string name="pip_action_finish">Завершить заказ</string>
+    <string name="pip_action_finish_desc">Нажмите, чтобы завершить текущий заказ</string>
+
+    <!-- ─── Chat ─────────────────────────────────────────────────────────────── -->
+    <string name="chat_title">Чат с пассажиром</string>
+    <string name="chat_input_hint">Сообщение…</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_passenger_label">Пассажир</string>
+    <string name="chat_driver_label">Вы</string>
+    <string name="chat_default_passenger_name">Пассажир</string>
+    <string name="driver_default_name">Водитель</string>
+
+    <!-- ─── Ride request dialog ──────────────────────────────────────────────── -->
+    <string name="ride_request_title">Новый заказ</string>
+    <string name="ride_earnings_label">Ваш заработок</string>
+    <string name="ride_accept">Принять</string>
+    <string name="ride_decline">Отклонить</string>
+    <string name="ride_passenger_rating">4.9 ★</string>
+
+    <!-- ─── Settings dialog ──────────────────────────────────────────────────── -->
+    <string name="settings_title">Настройки сервера</string>
+    <string name="settings_subtitle">Адрес сервера и имя водителя</string>
+    <string name="settings_hint">http://192.168.1.42:3000</string>
+    <string name="settings_help">localhost: http://127.0.0.1:3000\nWi-Fi: локальный IP\nПродакшн: https://…</string>
+    <string name="settings_save">Сохранить и переподключиться</string>
+    <string name="settings_name_hint">Ваше имя</string>
+
+    <!-- ─── Online/Offline ───────────────────────────────────────────────────── -->
+    <string name="status_online">Онлайн</string>
+    <string name="status_offline">Офлайн</string>
+    <string name="toast_went_online">Вышли на линию</string>
+    <string name="toast_went_offline">Вышли с линии</string>
+
+    <!-- ─── Multi-passenger ──────────────────────────────────────────────────── -->
+    <string name="passenger_waiting">Ожидает</string>
+    <string name="passenger_active">В работе</string>
+    <string name="chat_short">Чат</string>
+    <string name="chat_title_format">Чат с %1$s</string>
+    <string name="toast_passenger_waiting">%1$s вызывает машину</string>
+    <string name="toast_passenger_accepted">Приняли %1$s</string>
+    <string name="toast_passenger_left">%1$s отменил поездку</string>
+    <string name="toast_active_ride_exists">Сначала завершите текущую поездку</string>
+
+    <!-- ─── Bottom sheet ─────────────────────────────────────────────────────── -->
+    <string name="btn_cancel">Отмена</string>
+    <string name="btn_go">Поехали</string>
+
+    <!-- ─── Misc ─────────────────────────────────────────────────────────────── -->
+    <string name="pickup_label_format">%1$s: посадка</string>
+    <string name="dest_label_format">%1$s: назначение</string>
+    <string name="error_unknown">неизвестная ошибка</string>
+    <string name="error_invalid_server_address">Некорректный адрес сервера: %1$s</string>
+</resources>

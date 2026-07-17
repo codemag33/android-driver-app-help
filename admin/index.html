@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="3">
+<title>Yan.Pro Admin</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:monospace;background:#0a0a0a;color:#ccc;padding:20px}
+  h1{color:#00C853;margin-bottom:4px}
+  h2{color:#2979FF;margin-top:24px;margin-bottom:8px}
+  .sub{color:#666;font-size:13px;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  th{text-align:left;padding:8px 12px;background:#1a1a1a;color:#888;border-bottom:1px solid #333;font-size:12px}
+  td{padding:8px 12px;border-bottom:1px solid #1a1a1a;font-size:13px}
+  tr:hover td{background:#111}
+  .count{display:inline-block;background:#222;padding:4px 12px;border-radius:8px;margin-right:8px;font-size:14px}
+  .count b{color:#fff}
+  .empty{color:#555;font-style:italic;padding:12px}
+  .ok{color:#00C853}
+  .wait{color:#2979FF}
+</style>
+</head>
+<body>
+  <h1>Yan.Pro Dashboard</h1>
+  <div class="sub" id="info">загрузка...</div>
+
+  <div id="counts"></div>
+
+  <h2>Водители</h2>
+  <div id="drivers" class="empty">загрузка...</div>
+
+  <h2>Пассажиры</h2>
+  <div id="passengers" class="empty">загрузка...</div>
+
+  <h2>Поездки</h2>
+  <div id="rides" class="empty">загрузка...</div>
+
+<script>
+async function load() {
+  try {
+    const r = await fetch('/api/admin');
+    const d = await r.json();
+
+    document.getElementById('info').textContent =
+      `port ${d.port} — обновление каждые 3с`;
+
+    document.getElementById('counts').innerHTML =
+      `<span class="count">Водители: <b>${d.drivers.length}</b></span>` +
+      `<span class="count">Пассажиры: <b>${d.passengers.length}</b></span>` +
+      `<span class="count">Поездки: <b>${d.rides.length}</b></span>`;
+
+    document.getElementById('drivers').innerHTML = d.drivers.length
+      ? `<table><tr><th>Socket ID</th><th>Имя</th><th>Статус</th></tr>${
+          d.drivers.map(v => `<tr><td>${v.socketId}</td><td>${v.name}</td><td class="ok">online</td></tr>`).join('')
+        }</table>`
+      : '<div class="empty">нет водителей</div>';
+
+    document.getElementById('passengers').innerHTML = d.passengers.length
+      ? `<table><tr><th>Socket ID</th><th>Passenger ID</th><th>Имя</th><th>Ride</th></tr>${
+          d.passengers.map(v => `<tr><td>${v.socketId}</td><td>${v.id}</td><td>${v.name}</td><td>${v.rideId || '—'}</td></tr>`).join('')
+        }</table>`
+      : '<div class="empty">нет пассажиров</div>';
+
+    document.getElementById('rides').innerHTML = d.rides.length
+      ? `<table><tr><th>Ride ID</th><th>Passenger</th><th>Driver</th><th>Статус</th></tr>${
+          d.rides.map(v => `<tr><td>${v.id}</td><td>${v.passengerId}</td><td>${v.driverId || '—'}</td><td>${v.status}</td></tr>`).join('')
+        }</table>`
+      : '<div class="empty">нет активных поездок</div>';
+  } catch(e) {
+    document.getElementById('info').textContent = 'ошибка подключения: ' + e.message;
+  }
+}
+
+load();
+setInterval(load, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Uber palette -->
+    <color name="uber_black">#FF000000</color>
+    <color name="uber_dark">#FF1A1A1A</color>
+    <color name="uber_card">#FF282828</color>
+    <color name="uber_divider">#22FFFFFF</color>
+    <color name="uber_text_primary">#FFFFFFFF</color>
+    <color name="uber_text_secondary">#FF999999</color>
+    <color name="uber_text_hint">#FF666666</color>
+    <color name="uber_green">#FF06C167</color>
+    <color name="uber_yellow">#FFFFCC00</color>
+    <color name="uber_red">#FFFF5252</color>
+    <color name="uber_blue">#FF276EF1</color>
+</resources>
