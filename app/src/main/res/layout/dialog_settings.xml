@@ -66,6 +66,15 @@
             android:textSize="14sp"
             android:importantForAutofill="no" />
 
+        <Spinner
+            android:id="@+id/spinnerRole"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_uber_search_bar"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

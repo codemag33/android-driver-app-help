@@ -82,6 +82,9 @@
     <string name="settings_help">localhost: http://127.0.0.1:3000\nWi-Fi: локальный IP\nПродакшн: https://…</string>
     <string name="settings_save">Сохранить и переподключиться</string>
     <string name="settings_name_hint">Ваше имя</string>
+    <string name="settings_role_hint">Роль</string>
+    <string name="role_driver">Водитель</string>
+    <string name="role_mechanic">Мастер</string>
 
     <!-- ─── Online/Offline ───────────────────────────────────────────────────── -->
     <string name="status_online">Онлайн</string>

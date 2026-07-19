@@ -83,6 +83,8 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
         val pickup: LatLngData,
         val carMake: String,
         val breakdownType: String,
+        val phone: String = "",
+        val description: String = "",
         var isActive: Boolean = false
     )
 
@@ -288,7 +290,7 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
 
     // ─── Помощь на дороге ────────────────────────────────────────────────────
 
-    fun addWaitingAssistance(assistId: String, passengerId: String, name: String, pickupLat: Double, pickupLon: Double, carMake: String, breakdownType: String) {
+    fun addWaitingAssistance(assistId: String, passengerId: String, name: String, pickupLat: Double, pickupLon: Double, carMake: String, breakdownType: String, phone: String = "", description: String = "") {
         val existing = _waitingAssistances.value.find { it.assistId == assistId }
         if (existing != null) return
 
@@ -298,7 +300,9 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
             name = name,
             pickup = LatLngData(pickupLat, pickupLon),
             carMake = carMake,
-            breakdownType = breakdownType
+            breakdownType = breakdownType,
+            phone = phone,
+            description = description
         )
         _waitingAssistances.update { it + assistance }
     }

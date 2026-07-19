@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS_KEY_URL = "server_url"
         private const val PREFS_KEY_ONLINE = "driver_online"
         private const val PREFS_KEY_NAME = "driver_name"
+        private const val PREFS_KEY_ROLE = "driver_role"
         private const val DEFAULT_SERVER_URL = "https://taxi.fbs3.ru"
     }
 
@@ -96,6 +97,7 @@ class MainActivity : AppCompatActivity() {
     // ─── Server & Socket ─────────────────────────────────────────────────────
     private var serverUrl = DEFAULT_SERVER_URL
     private var driverDisplayName: String = ""
+    private var driverRole: String = "driver"
     private lateinit var rideSocket: RideSocketManager
 
     // ─── Dialogs (safe references — nulled on dismiss) ───────────────────────
@@ -150,6 +152,7 @@ class MainActivity : AppCompatActivity() {
 
         serverUrl = loadServerUrl()
         driverDisplayName = loadDriverName()
+        driverRole = loadDriverRole()
         setupRideSocket()
         setupOnlineStatus()
         handleIntent(intent)
@@ -737,6 +740,8 @@ class MainActivity : AppCompatActivity() {
             val status: TextView = view.findViewById(R.id.tvAssistanceStatus)
             val car: TextView = view.findViewById(R.id.tvAssistanceCar)
             val type: TextView = view.findViewById(R.id.tvAssistanceType)
+            val phone: TextView = view.findViewById(R.id.tvAssistancePhone)
+            val desc: TextView = view.findViewById(R.id.tvAssistanceDesc)
             val pickup: TextView = view.findViewById(R.id.tvAssistancePickup)
             val btnAccept: Button = view.findViewById(R.id.btnAssistanceAccept)
             val btnChat: Button = view.findViewById(R.id.btnAssistanceChat)
@@ -753,6 +758,8 @@ class MainActivity : AppCompatActivity() {
             holder.car.text = getString(R.string.assistance_car_label) + ": " + a.carMake
             val typeText = if (a.breakdownType == "electrical") getString(R.string.assistance_type_electrical) else getString(R.string.assistance_type_mechanical)
             holder.type.text = typeText
+            if (a.phone.isNotEmpty()) { holder.phone.text = "📞 " + a.phone; holder.phone.visibility = View.VISIBLE } else holder.phone.visibility = View.GONE
+            if (a.description.isNotEmpty()) { holder.desc.text = a.description; holder.desc.visibility = View.VISIBLE } else holder.desc.visibility = View.GONE
             holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", a.pickup.lat, a.pickup.lon)
 
             if (a.isActive) {
@@ -986,8 +993,17 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences(PREFS_SERVER, MODE_PRIVATE).edit().putString(PREFS_KEY_NAME, name).apply()
     }
 
+    private fun loadDriverRole(): String {
+        val prefs = getSharedPreferences(PREFS_SERVER, MODE_PRIVATE)
+        return prefs.getString(PREFS_KEY_ROLE, "driver") ?: "driver"
+    }
+
+    private fun saveDriverRole(role: String) {
+        getSharedPreferences(PREFS_SERVER, MODE_PRIVATE).edit().putString(PREFS_KEY_ROLE, role).apply()
+    }
+
     private fun setupRideSocket() {
-        rideSocket = RideSocketManager(serverUrl, driverDisplayName)
+        rideSocket = RideSocketManager(serverUrl, driverDisplayName, driverRole)
 
         rideSocket.onConnected = {
             runOnUiThread { showToast(R.string.toast_server_connected) }
@@ -1065,9 +1081,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         // ─── Помощь на дороге ──────────────────────────────────────────────
-        rideSocket.onAssistanceWaiting = { assistId, passengerId, name, pLat, pLon, carMake, breakdownType ->
+        rideSocket.onAssistanceWaiting = { assistId, passengerId, name, pLat, pLon, carMake, breakdownType, phone, description ->
             runOnUiThread {
-                viewModel.addWaitingAssistance(assistId, passengerId, name, pLat, pLon, carMake, breakdownType)
+                viewModel.addWaitingAssistance(assistId, passengerId, name, pLat, pLon, carMake, breakdownType, phone, description)
                 mapController.addWaitingPassenger(mapLibreMap, passengerId, pLat, pLon, name)
                 showToast(R.string.toast_assistance_waiting, name)
             }
@@ -1227,14 +1243,24 @@ class MainActivity : AppCompatActivity() {
 
         val input = dialog.findViewById<EditText>(R.id.etServerUrl)
         val nameInput = dialog.findViewById<EditText>(R.id.etDriverName)
+        val roleSpinner = dialog.findViewById<android.widget.Spinner>(R.id.spinnerRole)
         val btnSave = dialog.findViewById<Button>(R.id.btnSaveServer)
 
         input.setText(serverUrl)
         nameInput.setText(driverDisplayName)
 
+        val roleOptions = arrayOf(getString(R.string.role_driver), getString(R.string.role_mechanic))
+        val roleValues = arrayOf("driver", "mechanic")
+        val roleAdapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, roleOptions)
+        roleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        roleSpinner.adapter = roleAdapter
+        val currentRoleIndex = roleValues.indexOf(driverRole).coerceAtLeast(0)
+        roleSpinner.setSelection(currentRoleIndex)
+
         btnSave.setOnClickListener {
             val newUrl = input.text.toString().trim().trimEnd('/')
             val newName = nameInput.text.toString().trim()
+            val newRole = roleValues[roleSpinner.selectedItemPosition]
             if (newUrl.isEmpty()) return@setOnClickListener
 
             serverUrl = newUrl
@@ -1244,6 +1270,11 @@ class MainActivity : AppCompatActivity() {
             if (newName.isNotEmpty() && newName != driverDisplayName) {
                 driverDisplayName = newName
                 saveDriverName(newName)
+            }
+
+            if (newRole != driverRole) {
+                driverRole = newRole
+                saveDriverRole(newRole)
             }
 
             rideSocket.disconnect()

@@ -6,67 +6,48 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#121212">
-<title>Вызвать машину</title>
+<title>Помощь на дороге</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#121212;--card:#1E1E1E;--card2:#2A2A2A;--green:#00C853;--blue:#2979FF;--text:#FFFFFF;--text2:#AAAAAA;--border:#333333;--radius:12px}
+:root{--bg:#121212;--card:#1E1E1E;--card2:#2A2A2A;--green:#00C853;--red:#F44336;--text:#FFFFFF;--text2:#AAAAAA;--border:#333333;--radius:12px}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;position:relative}
-
-/* ─── Screens ──────────────────────────────── */
 .screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:opacity .3s,transform .3s;z-index:10}
 .screen.hidden{opacity:0;pointer-events:none;transform:translateY(20px)}
 .screen-inner{flex:1;display:flex;flex-direction:column;padding:20px;overflow-y:auto}
 
-/* ─── Welcome ──────────────────────────────── */
+/* Welcome */
 #welcome .logo{font-size:48px;text-align:center;margin:40px 0 8px}
-#welcome .brand{text-align:center;font-size:22px;font-weight:700;margin-bottom:40px;color:var(--green)}
+#welcome .brand{text-align:center;font-size:22px;font-weight:700;margin-bottom:40px;color:var(--red)}
 #welcome label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block}
 #welcome input{width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none}
-#welcome input:focus{border-color:var(--green)}
-#welcome .btn{margin-top:24px;width:100%;padding:16px;background:var(--green);color:#000;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer}
+#welcome input:focus{border-color:var(--red)}
+#welcome .btn{margin-top:24px;width:100%;padding:16px;background:var(--red);color:#fff;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer}
 #welcome .btn:active{opacity:.85}
 
-/* ─── Request ──────────────────────────────── */
-#request .header{font-size:20px;font-weight:700;margin-bottom:16px}
-.addr-group{position:relative;margin-bottom:12px}
-.addr-group label{font-size:12px;color:var(--text2);margin-bottom:4px;display:block}
-.addr-group input{width:100%;padding:12px 14px 12px 36px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;outline:none}
-.addr-group input:focus{border-color:var(--blue)}
-.addr-group .icon{position:absolute;left:10px;bottom:12px;color:var(--text2);font-size:16px}
-.addr-suggestions{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:50;display:none}
-.addr-suggestions.show{display:block}
-.addr-suggestions .item{padding:10px 14px;font-size:14px;border-bottom:1px solid var(--border);cursor:pointer}
-.addr-suggestions .item:active{background:var(--card2)}
-.addr-suggestions .item small{color:var(--text2);font-size:12px}
-.location-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;margin-bottom:16px;cursor:pointer}
-.location-btn:active{background:var(--border)}
-.location-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
-.request-btn{width:100%;padding:16px;background:var(--green);color:#000;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer;margin-top:auto}
-.request-btn:disabled{opacity:.4;cursor:default}
-.request-btn:active:not(:disabled){opacity:.85}
+/* Request (hidden, but we reuse mapScreen for the whole flow) */
+#request{display:none}
 
-/* ─── Map screen ───────────────────────────── */
+/* Map screen */
 #mapScreen{z-index:1}
 #mapContainer{position:absolute;inset:0}
 .status-bar{position:absolute;top:0;left:0;right:0;padding:12px 16px;background:linear-gradient(180deg,rgba(18,18,18,.95),rgba(18,18,18,0));z-index:20}
 .status-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card);border-radius:20px;font-size:14px;font-weight:600}
 .status-chip .dot{width:10px;height:10px;border-radius:50%}
-.status-chip .dot.waiting{background:var(--blue);animation:pulse 1.5s infinite}
-.status-chip .dot.driving{background:var(--green)}
-.status-chip .dot.riding{background:var(--green)}
+.status-chip .dot.searching{background:var(--red);animation:pulse 1.5s infinite}
+.status-chip .dot.found{background:var(--green)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-.chat-fab{position:absolute;bottom:24px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--blue);border:none;color:#fff;font-size:24px;box-shadow:0 4px 12px rgba(41,121,255,.4);z-index:20;cursor:pointer;display:none}
-.chat-fab:active{transform:scale(.95)}
-.chat-fab .badge{position:absolute;top:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#F44336;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
-
-.cancel-btn{position:absolute;bottom:24px;left:16px;padding:12px 20px;background:rgba(30,30,30,.9);border:1px solid #F44336;border-radius:var(--radius);color:#F44336;font-size:14px;font-weight:600;z-index:20;cursor:pointer;backdrop-filter:blur(8px)}
+.cancel-btn{position:absolute;bottom:24px;left:16px;padding:12px 20px;background:rgba(30,30,30,.9);border:1px solid var(--red);border-radius:var(--radius);color:var(--red);font-size:14px;font-weight:600;z-index:20;cursor:pointer;backdrop-filter:blur(8px)}
 .cancel-btn:active{background:rgba(244,67,54,.2)}
 
-/* ─── Chat modal ───────────────────────────── */
+/* Chat */
+.chat-fab{position:absolute;bottom:24px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:24px;box-shadow:0 4px 12px rgba(244,67,54,.4);z-index:20;cursor:pointer;display:none}
+.chat-fab:active{transform:scale(.95)}
+.chat-fab .badge{position:absolute;top:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#fff;color:var(--red);font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
+
 #chatModal{position:absolute;inset:0;background:var(--bg);z-index:100;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s}
 #chatModal.open{transform:translateY(0)}
 .chat-header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border)}
@@ -75,124 +56,72 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
 .chat-msg{max-width:80%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4}
 .chat-msg.driver{align-self:flex-start;background:var(--card2);border-bottom-left-radius:4px}
-.chat-msg.passenger{align-self:flex-end;background:var(--blue);border-bottom-right-radius:4px}
-.chat-msg .from{font-size:11px;color:var(--text2);margin-bottom:2px}
+.chat-msg.passenger{align-self:flex-end;background:var(--red);border-bottom-right-radius:4px}
 .chat-input-bar{display:flex;gap:8px;padding:12px 16px;background:var(--card);border-top:1px solid var(--border)}
 .chat-input-bar input{flex:1;padding:12px 14px;background:var(--card2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:15px;outline:none}
-.chat-input-bar input:focus{border-color:var(--blue)}
-.chat-input-bar button{padding:12px 20px;background:var(--blue);border:none;border-radius:20px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.chat-input-bar input:focus{border-color:var(--red)}
+.chat-input-bar button{padding:12px 20px;background:var(--red);border:none;border-radius:20px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
 .chat-input-bar button:active{opacity:.85}
 
-/* ─── Ride finished overlay ────────────────── */
-#finishedOverlay{position:absolute;inset:0;background:rgba(18,18,18,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;display:none}
-#finishedOverlay .icon{font-size:64px}
-#finishedOverlay .text{font-size:20px;font-weight:700}
-#finishedOverlay .sub{font-size:14px;color:var(--text2)}
-#finishedOverlay .btn{margin-top:24px;padding:14px 40px;background:var(--green);color:#000;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer}
+/* Overlay */
+#waitingOverlay{position:absolute;inset:0;background:rgba(18,18,18,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;display:none}
+#waitingOverlay .icon{font-size:64px}
+#waitingOverlay .text{font-size:20px;font-weight:700}
+#waitingOverlay .sub{font-size:14px;color:var(--text2);text-align:center;padding:0 20px}
+#waitingOverlay .btn{margin-top:24px;padding:14px 40px;background:var(--red);border:none;border-radius:var(--radius);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
 
-/* ─── Roadside assistance ─────────────────── */
-.assistance-link{margin-top:16px;text-align:center}
-.assistance-link a{color:#F44336;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}
-.assistance-link a:active{opacity:.7}
-
-#assistance .header{font-size:20px;font-weight:700;margin-bottom:6px}
-#assistance .subtext{font-size:14px;color:var(--text2);margin-bottom:20px}
-#assistance label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block}
-#assistance input{width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none}
-#assistance input:focus{border-color:#F44336}
-.type-toggle{display:flex;gap:10px;margin-bottom:20px}
-.type-btn{flex:1;padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:15px;font-weight:600;text-align:center;cursor:pointer;transition:border-color .2s}
-.type-btn.selected{border-color:#F44336;color:#F44336;background:rgba(244,67,54,.1)}
-.type-btn:active{opacity:.85}
-.assistance-submit{width:100%;padding:16px;background:#F44336;color:#fff;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer;margin-top:auto}
-.assistance-submit:disabled{opacity:.4;cursor:default}
-.assistance-submit:active:not(:disabled){opacity:.85}
-.assistance-back{background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;margin-top:12px;padding:8px}
-
-/* ─── Assistance waiting overlay ──────────── */
-#assistanceOverlay{position:absolute;inset:0;background:rgba(18,18,18,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;display:none}
-#assistanceOverlay .icon{font-size:64px}
-#assistanceOverlay .text{font-size:20px;font-weight:700}
-#assistanceOverlay .sub{font-size:14px;color:var(--text2)}
-#assistanceOverlay .info{font-size:13px;color:var(--text2);margin-top:4px}
-#assistanceOverlay .btn{margin-top:24px;padding:14px 40px;background:#F44336;border:none;border-radius:var(--radius);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+/* Info card */
+.info-card{position:absolute;bottom:80px;left:16px;right:16px;background:var(--card);border-radius:var(--radius);padding:16px;z-index:20;display:none}
+.info-card .row{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+.info-card .label{color:var(--text2)}
+.info-card .value{font-weight:600}
 </style>
 </head>
 <body>
 
-<!-- ═══ Screen 1: Welcome ═══ -->
+<!-- Screen: Welcome + form -->
 <div id="welcome" class="screen">
   <div class="screen-inner">
-    <div class="logo">🚗</div>
-    <div class="brand">Яндекс Про</div>
+    <div class="logo">🔧</div>
+    <div class="brand">Помощь на дороге</div>
 
     <label for="nameInput">Как вас зовут?</label>
     <input type="text" id="nameInput" placeholder="Имя" autocomplete="name">
 
-    <button class="btn" id="nameBtn">Продолжить</button>
-  </div>
-</div>
+    <label style="margin-top:16px" for="phoneInput">Телефон</label>
+    <input type="tel" id="phoneInput" placeholder="+7 (999) 123-45-67" autocomplete="tel">
 
-<!-- ═══ Screen 2: Request ride ═══ -->
-<div id="request" class="screen hidden">
-  <div class="screen-inner">
-    <div class="header">Куда ехать?</div>
-
-    <div class="location-btn" id="locationBtn">
-      <span class="dot"></span>
-      <span id="pickupText">Определяем местоположение...</span>
-    </div>
-
-    <div class="addr-group">
-      <span class="icon">📍</span>
-      <label>Откуда</label>
-      <input type="text" id="pickupInput" placeholder="Текущее местоположение" readonly>
-    </div>
-
-    <div class="addr-group">
-      <span class="icon">🏁</span>
-      <label>Куда</label>
-      <input type="text" id="destInput" placeholder="Адрес назначения">
-      <div class="addr-suggestions" id="destSuggestions"></div>
-    </div>
-
-    <button class="request-btn" id="requestBtn" disabled>Вызвать машину</button>
-
-    <div class="assistance-link">
-      <a id="assistanceLink">Помощь на дороге</a>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ Screen: Roadside assistance ═══ -->
-<div id="assistance" class="screen hidden">
-  <div class="screen-inner">
-    <div class="header">Помощь на дороге</div>
-    <div class="subtext">Укажите данные автомобиля и тип неисправности</div>
-
-    <label for="carMakeInput">Марка и модель автомобиля</label>
+    <label style="margin-top:16px" for="carMakeInput">Марка и модель автомобиля</label>
     <input type="text" id="carMakeInput" placeholder="Например: Toyota Camry">
 
     <label style="margin-top:16px">Тип неисправности</label>
-    <div class="type-toggle">
-      <div class="type-btn" id="typeElectrical">Электрическая</div>
-      <div class="type-btn" id="typeMechanical">Механическая</div>
+    <div class="type-toggle" style="display:flex;gap:10px;margin-bottom:16px">
+      <div class="type-btn" id="typeElectrical" style="flex:1;padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:15px;font-weight:600;text-align:center;cursor:pointer">Электрическая</div>
+      <div class="type-btn" id="typeMechanical" style="flex:1;padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:15px;font-weight:600;text-align:center;cursor:pointer">Механическая</div>
     </div>
 
-    <button class="assistance-submit" id="assistanceSubmit" disabled>Вызвать помощь</button>
-    <button class="assistance-back" id="assistanceBack">← Назад</button>
+    <label for="descInput">Описание неисправности</label>
+    <textarea id="descInput" rows="3" placeholder="Опишите проблему..." style="width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;outline:none;resize:none;font-family:inherit"></textarea>
+
+    <button class="btn" id="submitBtn" disabled style="margin-top:auto">Найти мастера</button>
   </div>
 </div>
 
-<!-- ═══ Screen 3: Map + status ═══ -->
+<!-- Screen: Map + waiting -->
 <div id="mapScreen" class="screen hidden">
   <div id="mapContainer"></div>
 
   <div class="status-bar">
-    <div class="status-chip" id="statusChip">
-      <span class="dot waiting"></span>
-      <span id="statusText">Ищем водителя...</span>
+    <div class="status-chip">
+      <span class="dot searching"></span>
+      <span id="statusText">Ищем мастера...</span>
     </div>
+  </div>
+
+  <div class="info-card" id="infoCard">
+    <div class="row"><span class="label">Автомобиль</span><span class="value" id="infoCar">—</span></div>
+    <div class="row"><span class="label">Неисправность</span><span class="value" id="infoType">—</span></div>
+    <div class="row"><span class="label">Телефон</span><span class="value" id="infoPhone">—</span></div>
   </div>
 
   <button class="cancel-btn" id="cancelBtn">Отменить</button>
@@ -205,7 +134,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div id="chatModal">
     <div class="chat-header">
       <button class="back" id="chatBack">←</button>
-      <span class="title">Чат с водителем</span>
+      <span class="title">Чат с мастером</span>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input-bar">
@@ -214,19 +143,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
   </div>
 
-  <div id="finishedOverlay">
+  <div id="waitingOverlay">
     <div class="icon">✅</div>
-    <div class="text">Поездка завершена</div>
-    <div class="sub">Спасибо за поездку!</div>
-    <button class="btn" id="newRideBtn">Новая поездка</button>
-  </div>
-
-  <div id="assistanceOverlay">
-    <div class="icon">🔧</div>
-    <div class="text" id="assistanceStatusText">Ищем помощника...</div>
-    <div class="sub" id="assistanceCarInfo"></div>
-    <div class="info" id="assistanceTypeInfo"></div>
-    <button class="btn" id="cancelAssistanceBtn" style="background:#F44336;color:#fff">Отменить вызов</button>
+    <div class="text" id="overlayText">Помощь завершена</div>
+    <div class="sub" id="overlaySub"></div>
+    <button class="btn" id="doneBtn">Готово</button>
   </div>
 </div>
 
@@ -236,523 +157,188 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 (function() {
   'use strict';
 
-  // ─── Config ──────────────────────────────────────────────────────────
   const SERVER_URL = location.origin;
   const GEOCODER_URL = 'https://nominatim.openstreetmap.org';
   const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
-  // ─── State ──────────────────────────────────────────────────────────
   let socket = null;
   let map = null;
   let passengerName = '';
-  let rideId = null;
+  let phone = '';
+  let carMake = '';
+  let description = '';
+  let breakdownType = null;
   let myLat = null, myLon = null;
   let driverLat = null, driverLon = null;
-  let pickupAddress = '';
-  let destAddress = '';
-  let destLat = null, destLon = null;
+  let assistId = null;
   let watchId = null;
   let unreadMessages = 0;
   let isChatOpen = false;
-  let isAssistanceMode = false;
-  let assistanceType = null;
-  let assistanceId = null;
 
-  // ─── DOM refs ───────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
 
-  // ─── Screen management ──────────────────────────────────────────────
   function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     $(id).classList.remove('hidden');
   }
 
-  // ═══ Welcome screen ═════════════════════════════════════════════════
-  $('nameBtn').onclick = () => {
-    const name = $('nameInput').value.trim();
-    if (!name) return;
-    passengerName = name;
-    showScreen('request');
-    startGeolocation();
+  // ─── Form logic ──────────────────────────────────────────────
+  $('typeElectrical').onclick = () => {
+    breakdownType = 'electrical';
+    $('typeElectrical').style.borderColor = 'var(--red)'; $('typeElectrical').style.color = 'var(--red)'; $('typeElectrical').style.background = 'rgba(244,67,54,.1)';
+    $('typeMechanical').style.borderColor = 'var(--border)'; $('typeMechanical').style.color = 'var(--text2)'; $('typeMechanical').style.background = 'var(--card2)';
+    updateBtn();
+  };
+  $('typeMechanical').onclick = () => {
+    breakdownType = 'mechanical';
+    $('typeMechanical').style.borderColor = 'var(--red)'; $('typeMechanical').style.color = 'var(--red)'; $('typeMechanical').style.background = 'rgba(244,67,54,.1)';
+    $('typeElectrical').style.borderColor = 'var(--border)'; $('typeElectrical').style.color = 'var(--text2)'; $('typeElectrical').style.background = 'var(--card2)';
+    updateBtn();
   };
 
-  $('nameInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') $('nameBtn').click();
-  });
+  ['nameInput','phoneInput','carMakeInput'].forEach(id => $(id).addEventListener('input', updateBtn));
+  $('descInput').addEventListener('input', updateBtn);
 
-  // ═══ Geolocation ════════════════════════════════════════════════════
-  let geoRetries = 0;
-  const MAX_GEO_RETRIES = 3;
-
-  function startGeolocation() {
-    if (!navigator.geolocation) {
-      $('pickupText').textContent = 'Геолокация недоступна';
-      return;
-    }
-    tryWatchPosition();
+  function updateBtn() {
+    const ok = $('nameInput').value.trim() && $('phoneInput').value.trim() && $('carMakeInput').value.trim() && breakdownType;
+    $('submitBtn').disabled = !ok;
   }
 
-  function tryWatchPosition() {
-    watchId = navigator.geolocation.watchPosition(
-      pos => {
-        geoRetries = 0;
-        myLat = pos.coords.latitude;
-        myLon = pos.coords.longitude;
-        reverseGeocode(myLat, myLon).then(addr => {
-          pickupAddress = addr;
-          $('pickupInput').value = addr;
-          $('pickupText').textContent = addr || `${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
-          updateRequestBtn();
-        });
-      },
-      err => {
-        console.error('Geolocation error:', err.code, err.message);
-        // iOS standalone: watchPosition may silently fail — retry with getCurrentPosition
-        if (geoRetries < MAX_GEO_RETRIES && isIOS() && isStandalone()) {
-          geoRetries++;
-          console.log(`Retrying geolocation (${geoRetries}/${MAX_GEO_RETRIES})...`);
-          navigator.geolocation.getCurrentPosition(
-            pos => {
-              geoRetries = 0;
-              myLat = pos.coords.latitude;
-              myLon = pos.coords.longitude;
-              reverseGeocode(myLat, myLon).then(addr => {
-                pickupAddress = addr;
-                $('pickupInput').value = addr;
-                $('pickupText').textContent = addr || `${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
-                updateRequestBtn();
-              });
-            },
-            retryErr => {
-              if (geoRetries >= MAX_GEO_RETRIES) showGeoError(retryErr);
-            },
-            { enableHighAccuracy: true, timeout: 15000 }
-          );
-          return;
-        }
-        showGeoError(err);
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  $('submitBtn').onclick = () => {
+    passengerName = $('nameInput').value.trim();
+    phone = $('phoneInput').value.trim();
+    carMake = $('carMakeInput').value.trim();
+    description = $('descInput').value.trim();
+    if (!passengerName || !phone || !carMake || !breakdownType) return;
+    showScreen('mapScreen');
+    startGeolocationAndConnect();
+  };
+
+  // ─── Geolocation ────────────────────────────────────────────
+  function startGeolocationAndConnect() {
+    if (!navigator.geolocation) { connectAndRequest(); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => { myLat = pos.coords.latitude; myLon = pos.coords.longitude; connectAndRequest(); },
+      () => connectAndRequest(),
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
-  function showGeoError(err) {
-    const msgs = {
-      1: 'Геолокация запрещена — разрешите доступ в настройках',
-      2: 'Геолокация недоступна',
-      3: 'Таймаут геолокации'
-    };
-    $('pickupText').textContent = msgs[err.code] || `Ошибка: ${err.message}`;
-  }
-
-  function isIOS() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  }
-
-  function isStandalone() {
-    return window.navigator.standalone === true ||
-      window.matchMedia('(display-mode: standalone)').matches;
-  }
-
-  $('locationBtn').onclick = () => {
-    if (myLat && myLon) {
-      reverseGeocode(myLat, myLon).then(addr => {
-        pickupAddress = addr;
-        $('pickupInput').value = addr;
-        $('pickupText').textContent = addr;
-      });
-    }
-  };
-
-  // ═══ Destination search ═════════════════════════════════════════════
-  let searchTimeout = null;
-  $('destInput').addEventListener('input', () => {
-    clearTimeout(searchTimeout);
-    const q = $('destInput').value.trim();
-    if (q.length < 3) { $('destSuggestions').classList.remove('show'); return; }
-    searchTimeout = setTimeout(() => searchAddress(q), 400);
-  });
-
-  async function searchAddress(query) {
-    try {
-      const url = `${GEOCODER_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=5&accept-language=ru`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const box = $('destSuggestions');
-      box.innerHTML = '';
-      if (data.length === 0) { box.classList.remove('show'); return; }
-      data.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'item';
-        div.innerHTML = `<div>${item.display_name.split(',').slice(0, 3).join(', ')}</div><small>${item.display_name.split(',').slice(3, 6).join(', ')}</small>`;
-        div.onclick = () => {
-          destLat = parseFloat(item.lat);
-          destLon = parseFloat(item.lon);
-          destAddress = item.display_name.split(',').slice(0, 3).join(', ');
-          $('destInput').value = destAddress;
-          box.classList.remove('show');
-          updateRequestBtn();
-        };
-        box.appendChild(div);
-      });
-      box.classList.add('show');
-    } catch(e) { console.error('geocode error', e); }
-  }
-
-  async function reverseGeocode(lat, lon) {
-    try {
-      const url = `${GEOCODER_URL}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`;
-      const res = await fetch(url);
-      const data = await res.json();
-      return data.display_name || '';
-    } catch(e) { return ''; }
-  }
-
-  function updateRequestBtn() {
-    $('requestBtn').disabled = !(myLat && myLon && destLat && destLon);
-  }
-
-  // ═══ Request ride ═══════════════════════════════════════════════════
-  $('requestBtn').onclick = () => {
-    if (!myLat || !myLon || !destLat || !destLon) return;
-    connectSocket();
-    showScreen('mapScreen');
-    initMap();
-  };
-
-  // ═══ Cancel ════════════════════════════════════════════════════════
-  $('cancelBtn').onclick = () => {
-    if (rideId) socket.emit('ride:cancel', { rideId });
-    cleanup();
-    showScreen('request');
-  };
-
-  // ═══ Finished overlay ══════════════════════════════════════════════
-  $('newRideBtn').onclick = () => {
-    $('finishedOverlay').style.display = 'none';
-    rideId = null;
-    driverLat = null;
-    driverLon = null;
-    showScreen('request');
-  };
-
-  // ═══ Roadside assistance ═════════════════════════════════════════
-  $('assistanceLink').onclick = () => {
-    isAssistanceMode = true;
-    assistanceType = null;
-    $('carMakeInput').value = '';
-    $('typeElectrical').classList.remove('selected');
-    $('typeMechanical').classList.remove('selected');
-    $('assistanceSubmit').disabled = true;
-    showScreen('assistance');
-  };
-
-  $('assistanceBack').onclick = () => {
-    isAssistanceMode = false;
-    showScreen('request');
-  };
-
-  $('typeElectrical').onclick = () => {
-    assistanceType = 'electrical';
-    $('typeElectrical').classList.add('selected');
-    $('typeMechanical').classList.remove('selected');
-    updateAssistanceBtn();
-  };
-
-  $('typeMechanical').onclick = () => {
-    assistanceType = 'mechanical';
-    $('typeMechanical').classList.add('selected');
-    $('typeElectrical').classList.remove('selected');
-    updateAssistanceBtn();
-  };
-
-  $('carMakeInput').addEventListener('input', updateAssistanceBtn);
-
-  function updateAssistanceBtn() {
-    $('assistanceSubmit').disabled = !($('carMakeInput').value.trim() && assistanceType);
-  }
-
-  $('assistanceSubmit').onclick = () => {
-    if (!$('carMakeInput').value.trim() || !assistanceType || !myLat || !myLon) return;
-    connectSocketForAssistance();
-    $('assistanceOverlay').style.display = 'flex';
-    $('assistanceCarInfo').textContent = $('carMakeInput').value.trim();
-    $('assistanceTypeInfo').textContent = assistanceType === 'electrical' ? 'Электрическая неисправность' : 'Механическая неисправность';
-  };
-
-  $('cancelAssistanceBtn').onclick = () => {
-    if (assistanceId && socket && socket.connected) {
-      socket.emit('assistance:cancel', { assistanceId });
-    }
-    $('assistanceOverlay').style.display = 'none';
-    isAssistanceMode = false;
-    assistanceId = null;
-  };
-
-  function connectSocketForAssistance() {
-    if (socket && socket.connected) {
-      socket.emit('passenger:register', { name: passengerName });
-      socket.emit('assistance:request', {
-        passengerName,
-        pickup: { lat: myLat, lon: myLon },
-        carMake: $('carMakeInput').value.trim(),
-        breakdownType: assistanceType
-      });
-      return;
-    }
+  // ─── Socket ─────────────────────────────────────────────────
+  function connectAndRequest() {
     socket = io(SERVER_URL, { reconnection: true, reconnectionDelay: 2000 });
 
     socket.on('connect', () => {
       socket.emit('passenger:register', { name: passengerName });
       socket.emit('assistance:request', {
         passengerName,
-        pickup: { lat: myLat, lon: myLon },
-        carMake: $('carMakeInput').value.trim(),
-        breakdownType: assistanceType
+        phone,
+        carMake,
+        breakdownType,
+        description,
+        pickup: { lat: myLat || 0, lon: myLon || 0 }
       });
+      initMap();
+      $('infoCar').textContent = carMake;
+      $('infoType').textContent = breakdownType === 'electrical' ? 'Электрическая' : 'Механическая';
+      $('infoPhone').textContent = phone;
+      $('infoCard').style.display = 'block';
     });
 
     socket.on('assistance:accepted', data => {
-      assistanceId = data.assistanceId;
-      $('assistanceStatusText').textContent = 'Помощь в пути!';
-      $('cancelAssistanceBtn').style.display = 'none';
-      chatFab.style.display = 'flex';
-    });
-
-    socket.on('assistance:cancelled', () => {
-      $('assistanceOverlay').style.display = 'none';
-      assistanceId = null;
-      isAssistanceMode = false;
-    });
-
-    socket.on('disconnect', () => {
-      $('assistanceStatusText').textContent = 'Переподключение...';
-    });
-  }
-
-  // ═══ Socket.IO ═════════════════════════════════════════════════════
-  function connectSocket() {
-    if (socket && socket.connected) return;
-    socket = io(SERVER_URL, { reconnection: true, reconnectionDelay: 2000 });
-
-    socket.on('connect', () => {
-      console.log('connected');
-      socket.emit('passenger:register', { name: passengerName });
-      socket.emit('ride:request', {
-        passengerName,
-        pickup: { lat: myLat, lon: myLon },
-        destination: { lat: destLat, lon: destLon }
-      });
-    });
-
-    socket.on('ride:accepted', data => {
-      rideId = data.rideId;
-      setStatus('driving', 'Водитель едет к вам');
+      assistId = data.assistId;
+      $('statusText').textContent = 'Мастер в пути!';
+      document.querySelector('.status-chip .dot').className = 'dot found';
       $('cancelBtn').style.display = 'none';
       $('chatFab').style.display = 'flex';
     });
 
-    socket.on('ride:driver_location', data => {
-      driverLat = data.lat;
-      driverLon = data.lon;
+    socket.on('assistance:driver_location', data => {
+      driverLat = data.lat; driverLon = data.lon;
       updateDriverMarker();
     });
 
     socket.on('chat:message', data => {
-      addChatMessage(data.from === 'driver' ? 'Водитель' : 'Вы', data.text, data.from === 'driver');
+      addChatMsg(data.from === 'driver' ? 'Мастер' : 'Вы', data.text, data.from === 'driver');
       if (!isChatOpen && data.from === 'driver') {
-        unreadMessages++;
-        $('chatBadge').textContent = unreadMessages;
-        $('chatBadge').style.display = 'flex';
+        unreadMessages++; $('chatBadge').textContent = unreadMessages; $('chatBadge').style.display = 'flex';
       }
     });
 
-    socket.on('ride:finished', () => {
-      setStatus('waiting', 'Поездка завершена');
-      $('finishedOverlay').style.display = 'flex';
-      $('chatFab').style.display = 'none';
-    });
-
-    socket.on('ride:cancelled', () => {
-      setStatus('waiting', 'Водитель отменил');
-      setTimeout(() => {
-        $('finishedOverlay').style.display = 'none';
-        rideId = null;
-        driverLat = null;
-        driverLon = null;
-        $('cancelBtn').style.display = 'block';
-        $('chatFab').style.display = 'none';
-        setStatus('waiting', 'Ищем водителя...');
-      }, 2000);
-    });
-
-    socket.on('ride:peer_disconnected', () => {
-      setStatus('waiting', 'Водитель отключился');
-    });
-
-    socket.on('disconnect', () => {
-      setStatus('waiting', 'Переподключение...');
-    });
+    socket.on('assistance:cancelled', () => { hideAll(); });
+    socket.on('assistance:finished', () => { showDone('Помощь завершена', 'Спасибо! Мастер завершил работу.'); });
+    socket.on('assistance:driver_disconnected', () => { showDone('Мастер отключился', 'Попробуйте вызвать снова.'); });
+    socket.on('disconnect', () => { $('statusText').textContent = 'Переподключение...'; });
   }
 
-  // ═══ Map ════════════════════════════════════════════════════════════
-  let passengerMarker = null;
-  let driverMarker = null;
-  let routeLayerAdded = false;
+  // ─── Map ────────────────────────────────────────────────────
+  let passengerMarker = null, driverMarker = null;
 
   function initMap() {
     if (map) return;
-    map = new maplibregl.Map({
-      container: 'mapContainer',
-      style: MAP_STYLE,
-      center: [myLon || 37.6, myLat || 55.7],
-      zoom: 15,
-      attributionControl: false
-    });
-
+    map = new maplibregl.Map({ container: 'mapContainer', style: MAP_STYLE, center: [myLon || 37.6, myLat || 55.7], zoom: 15, attributionControl: false });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-
     map.on('load', () => {
-      // Passenger marker (blue)
-      const passengerEl = createDotMarker('#2979FF');
-      passengerMarker = new maplibregl.Marker({ element: passengerEl })
-        .setLngLat([myLon, myLat])
-        .addTo(map);
-
-      // Driver marker (green) — hidden initially
-      const driverEl = createDotMarker('#00C853');
-      driverEl.style.display = 'none';
-      driverMarker = new maplibregl.Marker({ element: driverEl })
-        .setLngLat([myLon, myLat])
-        .addTo(map);
-
-      // Route line source
-      map.addSource('route-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
-      map.addLayer({
-        id: 'route-layer',
-        type: 'line',
-        source: 'route-source',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#2979FF', 'line-width': 5, 'line-opacity': 0.8 }
-      });
-      routeLayerAdded = true;
+      const pEl = createDot('#2979FF');
+      passengerMarker = new maplibregl.Marker({ element: pEl }).setLngLat([myLon || 37.6, myLat || 55.7]).addTo(map);
+      const dEl = createDot('#00C853'); dEl.style.display = 'none';
+      driverMarker = new maplibregl.Marker({ element: dEl }).setLngLat([myLon || 37.6, myLat || 55.7]).addTo(map);
     });
-
-    // Start location broadcast
-    startLocationBroadcast();
+    watchId = navigator.geolocation.watchPosition(pos => {
+      myLat = pos.coords.latitude; myLon = pos.coords.longitude;
+      if (passengerMarker) passengerMarker.setLngLat([myLon, myLat]);
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
   }
 
-  function createDotMarker(color) {
+  function createDot(color) {
     const el = document.createElement('div');
-    el.style.cssText = `
-      width:20px;height:20px;border-radius:50%;
-      background:${color};
-      border:3px solid #fff;
-      box-shadow:0 2px 8px rgba(0,0,0,.4);
-    `;
+    el.style.cssText = `width:20px;height:20px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);`;
     return el;
   }
 
   function updateDriverMarker() {
-    if (!map || !driverMarker || !driverLat || !driverLon) return;
+    if (!map || !driverMarker || !driverLat) return;
     driverMarker.setLngLat([driverLon, driverLat]);
     driverMarker.getElement().style.display = 'block';
-    updateRouteLine();
-
-    // Fit bounds to include both
     const bounds = new maplibregl.LngLatBounds();
-    bounds.extend([myLon, myLat]);
-    bounds.extend([driverLon, driverLat]);
+    bounds.extend([myLon, myLat]); bounds.extend([driverLon, driverLat]);
     map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
   }
 
-  function updateRouteLine() {
-    if (!routeLayerAdded || !myLat || !driverLat) return;
-    const src = map.getSource('route-source');
-    if (!src) return;
+  // ─── Cancel ─────────────────────────────────────────────────
+  $('cancelBtn').onclick = () => {
+    if (assistId && socket) socket.emit('assistance:cancel', { assistId });
+    hideAll();
+  };
 
-    // Curved route
-    const curve = buildCurvedRoute(myLat, myLon, driverLat, driverLon);
-    src.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: curve } });
-  }
-
-  function buildCurvedRoute(aLat, aLon, bLat, bLon, segments = 32) {
-    const mx = (aLon + bLon) / 2;
-    const my = (aLat + bLat) / 2;
-    const dx = bLon - aLon;
-    const dy = bLat - aLat;
-    const f = 0.15;
-    const cx = mx - dy * f;
-    const cy = my + dx * f;
-    const pts = [];
-    for (let i = 0; i <= segments; i++) {
-      const t = i / segments;
-      const x = (1-t)*(1-t)*aLon + 2*(1-t)*t*cx + t*t*bLon;
-      const y = (1-t)*(1-t)*aLat + 2*(1-t)*t*cy + t*t*bLat;
-      pts.push([x, y]);
-    }
-    return pts;
-  }
-
-  function startLocationBroadcast() {
+  function hideAll() {
     if (watchId) navigator.geolocation.clearWatch(watchId);
-    watchId = navigator.geolocation.watchPosition(
-      pos => {
-        myLat = pos.coords.latitude;
-        myLon = pos.coords.longitude;
-        if (passengerMarker) passengerMarker.setLngLat([myLon, myLat]);
-        updateRouteLine();
-        if (rideId && socket && socket.connected) {
-          socket.emit('location:update', { rideId, lat: myLat, lon: myLon });
-        }
-        if (assistanceId && socket && socket.connected) {
-          socket.emit('location:update', { rideId: assistanceId, lat: myLat, lon: myLon });
-        }
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-    );
-
-    // iOS standalone: periodically re-request location if updates stop
-    if (isIOS() && isStandalone()) {
-      setInterval(() => {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            myLat = pos.coords.latitude;
-            myLon = pos.coords.longitude;
-            if (passengerMarker) passengerMarker.setLngLat([myLon, myLat]);
-            updateRouteLine();
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 10000 }
-        );
-      }, 30000);
-    }
+    if (socket) { socket.disconnect(); socket = null; }
+    assistId = null; driverLat = null; driverLon = null; isChatOpen = false; unreadMessages = 0;
+    $('chatMessages').innerHTML = ''; $('chatBadge').style.display = 'none';
+    $('chatModal').classList.remove('open'); $('chatFab').style.display = 'none';
+    $('infoCard').style.display = 'none'; $('waitingOverlay').style.display = 'none';
+    if (driverMarker) driverMarker.getElement().style.display = 'none';
+    $('statusText').textContent = 'Ищем мастера...';
+    document.querySelector('.status-chip .dot').className = 'dot searching';
+    $('cancelBtn').style.display = 'block';
+    if (map) { map.remove(); map = null; passengerMarker = null; driverMarker = null; }
+    showScreen('welcome');
   }
 
-  // ═══ Status ═════════════════════════════════════════════════════════
-  function setStatus(type, text) {
-    const dot = $('statusChip').querySelector('.dot');
-    dot.className = 'dot ' + type;
-    $('statusText').textContent = text;
+  function showDone(text, sub) {
+    $('overlayText').textContent = text;
+    $('overlaySub').textContent = sub;
+    $('waitingOverlay').style.display = 'flex';
   }
 
-  // ═══ Chat ═══════════════════════════════════════════════════════════
-  $('chatFab').onclick = () => {
-    isChatOpen = true;
-    unreadMessages = 0;
-    $('chatBadge').style.display = 'none';
-    $('chatModal').classList.add('open');
-    $('chatInput').focus();
-  };
+  $('doneBtn').onclick = () => { hideAll(); };
 
-  $('chatBack').onclick = () => {
-    isChatOpen = false;
-    $('chatModal').classList.remove('open');
-  };
+  // ─── Chat ───────────────────────────────────────────────────
+  $('chatFab').onclick = () => { isChatOpen = true; unreadMessages = 0; $('chatBadge').style.display = 'none'; $('chatModal').classList.add('open'); $('chatInput').focus(); };
+  $('chatBack').onclick = () => { isChatOpen = false; $('chatModal').classList.remove('open'); };
 
-  function addChatMessage(from, text, isDriver) {
+  function addChatMsg(from, text, isDriver) {
     const div = document.createElement('div');
     div.className = 'chat-msg ' + (isDriver ? 'driver' : 'passenger');
     if (isDriver) div.innerHTML = `<div class="from">${from}</div>${escapeHtml(text)}`;
@@ -762,46 +348,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   }
 
   $('chatSendBtn').onclick = sendChat;
-  $('chatInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendChat();
-  });
+  $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
   function sendChat() {
     const text = $('chatInput').value.trim();
-    if (!text || !rideId || !socket) return;
-    socket.emit('chat:message', { rideId, text });
-    addChatMessage('Вы', text, false);
+    if (!text || !socket) return;
+    socket.emit('chat:message', { text });
+    addChatMsg('Вы', text, false);
     $('chatInput').value = '';
   }
 
-  // ═══ Helpers ════════════════════════════════════════════════════════
-  function escapeHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  function cleanup() {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
-    if (socket) { socket.disconnect(); socket = null; }
-    rideId = null;
-    driverLat = null;
-    driverLon = null;
-    isChatOpen = false;
-    isAssistanceMode = false;
-    assistanceType = null;
-    assistanceId = null;
-    unreadMessages = 0;
-    $('chatMessages').innerHTML = '';
-    $('chatBadge').style.display = 'none';
-    $('chatModal').classList.remove('open');
-    $('cancelBtn').style.display = 'block';
-    $('chatFab').style.display = 'none';
-    $('finishedOverlay').style.display = 'none';
-    $('assistanceOverlay').style.display = 'none';
-    if (driverMarker) driverMarker.getElement().style.display = 'none';
-    setStatus('waiting', 'Ищем водителя...');
-    if (map) { map.remove(); map = null; passengerMarker = null; driverMarker = null; routeLayerAdded = false; }
-  }
-
+  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 })();
 </script>
 </body>

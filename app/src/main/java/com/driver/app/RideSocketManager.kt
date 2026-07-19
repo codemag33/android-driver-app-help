@@ -18,7 +18,8 @@ import java.net.URISyntaxException
  */
 class RideSocketManager(
     private val serverUrl: String,
-    private val driverName: String
+    private val driverName: String,
+    private val driverRole: String = "driver"
 ) {
     companion object {
         private const val TAG = "RideSocketManager"
@@ -60,7 +61,7 @@ class RideSocketManager(
     var onPassengerCancelled: ((passengerId: String) -> Unit)? = null
 
     // Помощь на дороге
-    var onAssistanceWaiting: ((assistId: String, passengerId: String, passengerName: String, pickupLat: Double, pickupLon: Double, carMake: String, breakdownType: String) -> Unit)? = null
+    var onAssistanceWaiting: ((assistId: String, passengerId: String, passengerName: String, pickupLat: Double, pickupLon: Double, carMake: String, breakdownType: String, phone: String, description: String) -> Unit)? = null
     var onAssistanceAccepted: ((assistId: String, passengerId: String) -> Unit)? = null
     var onAssistanceCancelled: ((assistId: String) -> Unit)? = null
     var onAssistanceFinished: ((assistId: String) -> Unit)? = null
@@ -83,7 +84,10 @@ class RideSocketManager(
 
             s.on(Socket.EVENT_CONNECT) {
                 Log.d(TAG, "connected")
-                s.emit("driver:register", JSONObject().put("name", driverName))
+                s.emit("driver:register", JSONObject().apply {
+                    put("name", driverName)
+                    put("role", driverRole)
+                })
                 onConnected?.invoke()
             }
 
@@ -209,7 +213,9 @@ class RideSocketManager(
                     pickup.optDouble("lat"),
                     pickup.optDouble("lon"),
                     data.optString("carMake", ""),
-                    data.optString("breakdownType", "unknown")
+                    data.optString("breakdownType", "unknown"),
+                    data.optString("phone", ""),
+                    data.optString("description", "")
                 )
             }
             s.on("assistance:ride_accepted") { args ->
