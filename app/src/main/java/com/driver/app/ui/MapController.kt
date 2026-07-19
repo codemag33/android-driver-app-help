@@ -7,6 +7,12 @@ import android.graphics.Canvas
 import android.view.animation.LinearInterpolator
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.URL
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.style.layers.LineLayer
@@ -56,6 +62,10 @@ class MapController(private val context: Context) {
 
     private var routeArrowAnimator: ValueAnimator? = null
     private var layersReady = false
+    private val scope = CoroutineScope(Dispatchers.IO)
+    private val OSRM_URL = "https://router.project-osrm.org"
+
+    var onRouteInfo: ((km: String, min: String) -> Unit)? = null
 
     // ─── Public state ────────────────────────────────────────────────────────
 
@@ -367,20 +377,55 @@ class MapController(private val context: Context) {
                 ?.setGeoJson(FeatureCollection.fromFeatures(emptyArray()))
             style.getSourceAs<GeoJsonSource>(endpointBSourceId)
                 ?.setGeoJson(FeatureCollection.fromFeatures(emptyArray()))
+            onRouteInfo?.invoke("", "")
             return
         }
 
-        val curve = buildCurvedRoute(a, b)
+        fetchOSRMRoute(map, a, b)
+    }
+
+    private fun fetchOSRMRoute(map: MapLibreMap?, a: LatLng, b: LatLng) {
+        val url = "$OSRM_URL/route/v1/driving/${a.longitude},${a.latitude};${b.longitude},${b.latitude}?overview=full&geometries=geojson&steps=false"
+        scope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) { JSONObject(URL(url).readText()) }
+                val routes = json.optJSONArray("routes")
+                if (routes != null && routes.length() > 0) {
+                    val route = routes.getJSONObject(0)
+                    val distance = route.getDouble("distance")
+                    val duration = route.getDouble("duration")
+                    val km = String.format("%.1f км", distance / 1000)
+                    val min = "${Math.round(duration / 60)} мин"
+                    val coords = route.getJSONObject("geometry").getJSONArray("coordinates")
+                    val points = (0 until coords.length()).map { i ->
+                        val c = coords.getJSONArray(i)
+                        Point.fromLngLat(c.getDouble(0), c.getDouble(1))
+                    }
+                    withContext(Dispatchers.Main) {
+                        drawRouteLine(map, points)
+                        onRouteInfo?.invoke(km, min)
+                    }
+                    return@launch
+                }
+            } catch (_: Exception) {}
+            withContext(Dispatchers.Main) {
+                val curve = buildCurvedRoute(a, b)
+                drawRouteLine(map, curve)
+                val dist = a.distanceTo(b) / 1000.0
+                onRouteInfo?.invoke(String.format("~%.1f км", dist), "~${Math.round(dist / 40 * 60)} мин")
+            }
+        }
+    }
+
+    private fun drawRouteLine(map: MapLibreMap?, points: List<Point>) {
+        val style = map?.style ?: return
         style.getSourceAs<GeoJsonSource>(routeLineSourceId)
-            ?.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(curve)))
-
-        // Endpoint dots at curve start/end
+            ?.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(points)))
         style.getSourceAs<GeoJsonSource>(endpointASourceId)
-            ?.setGeoJson(Feature.fromGeometry(curve.first()))
+            ?.setGeoJson(Feature.fromGeometry(points.first()))
         style.getSourceAs<GeoJsonSource>(endpointBSourceId)
-            ?.setGeoJson(Feature.fromGeometry(curve.last()))
-
-        startArrowAnimation(map, curve)
+            ?.setGeoJson(Feature.fromGeometry(points.last()))
+        startArrowAnimation(map, points)
     }
 
     // ─── Clear all ───────────────────────────────────────────────────────────

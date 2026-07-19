@@ -86,6 +86,8 @@ class MainActivity : AppCompatActivity() {
     // ─── Map ─────────────────────────────────────────────────────────────────
     private var mapLibreMap: MapLibreMap? = null
     private val mapController by lazy { MapController(this) }
+    private var lastRouteKm = ""
+    private var lastRouteMin = ""
 
     // ─── Handlers ────────────────────────────────────────────────────────────
     private val suggestHandler = Handler(Looper.getMainLooper())
@@ -293,6 +295,11 @@ class MainActivity : AppCompatActivity() {
             map.setStyle(Style.Builder().fromUri(styleUrl)) { style ->
                 Log.d(TAG, "Map style loaded")
                 mapController.setupLayers(style)
+                mapController.onRouteInfo = { km, min ->
+                    lastRouteKm = km
+                    lastRouteMin = min
+                    runOnUiThread { updateGoButtonState() }
+                }
 
                 if (hasLocationPermission()) {
                     enableLocationComponent()
@@ -850,7 +857,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateGoButtonState() {
         binding.btnGo.text = viewModel.getGoButtonText()
         binding.btnGo.isEnabled = viewModel.isGoButtonEnabled()
-        binding.tvOrderStatus.text = viewModel.getStatusText()
+        val statusText = viewModel.getStatusText()
+        binding.tvOrderStatus.text = if (lastRouteKm.isNotEmpty()) "$statusText  |  $lastRouteKm · $lastRouteMin" else statusText
         binding.tvSearchPlaceholder.text = viewModel.getSearchPlaceholder()
 
         val state = viewModel.tripState.value
@@ -947,6 +955,8 @@ class MainActivity : AppCompatActivity() {
     // ═══════════════════════════════════════════════════════════════════════════
 
     private fun finishOrder() {
+        lastRouteKm = ""
+        lastRouteMin = ""
         // Завершаем все активные поездки (мульти-пассажиры)
         rideSocket.activeRides.keys.toList().forEach { passengerId ->
             rideSocket.finishPassengerRide(passengerId)
