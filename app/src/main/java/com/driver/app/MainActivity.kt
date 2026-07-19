@@ -756,11 +756,11 @@ class MainActivity : AppCompatActivity() {
             holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", a.pickup.lat, a.pickup.lon)
 
             if (a.isActive) {
-                holder.status.setText(R.string/passenger_active)
+                holder.status.setText(R.string.passenger_active)
                 holder.dot.setBackgroundResource(R.drawable.bg_online_dot)
                 holder.btnAccept.visibility = View.GONE
             } else {
-                holder.status.setText(R.string/passenger_waiting)
+                holder.status.setText(R.string.passenger_waiting)
                 holder.dot.setBackgroundResource(R.drawable.bg_assistance_dot)
                 holder.btnAccept.visibility = View.VISIBLE
                 holder.btnAccept.setOnClickListener { onAccept(a) }
