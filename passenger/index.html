@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#121212">
 <title>Вызвать машину</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -279,13 +281,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   });
 
   // ═══ Geolocation ════════════════════════════════════════════════════
+  let geoRetries = 0;
+  const MAX_GEO_RETRIES = 3;
+
   function startGeolocation() {
     if (!navigator.geolocation) {
       $('pickupText').textContent = 'Геолокация недоступна';
       return;
     }
+    tryWatchPosition();
+  }
+
+  function tryWatchPosition() {
     watchId = navigator.geolocation.watchPosition(
       pos => {
+        geoRetries = 0;
         myLat = pos.coords.latitude;
         myLon = pos.coords.longitude;
         reverseGeocode(myLat, myLon).then(addr => {
@@ -297,15 +307,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       },
       err => {
         console.error('Geolocation error:', err.code, err.message);
-        const msgs = {
-          1: 'Геолокация запрещена — разрешите доступ в настройках браузера',
-          2: 'Геолокация недоступна',
-          3: 'Таймаут геолокации'
-        };
-        $('pickupText').textContent = msgs[err.code] || `Ошибка: ${err.message}`;
+        // iOS standalone: watchPosition may silently fail — retry with getCurrentPosition
+        if (geoRetries < MAX_GEO_RETRIES && isIOS() && isStandalone()) {
+          geoRetries++;
+          console.log(`Retrying geolocation (${geoRetries}/${MAX_GEO_RETRIES})...`);
+          navigator.geolocation.getCurrentPosition(
+            pos => {
+              geoRetries = 0;
+              myLat = pos.coords.latitude;
+              myLon = pos.coords.longitude;
+              reverseGeocode(myLat, myLon).then(addr => {
+                pickupAddress = addr;
+                $('pickupInput').value = addr;
+                $('pickupText').textContent = addr || `${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
+                updateRequestBtn();
+              });
+            },
+            retryErr => {
+              if (geoRetries >= MAX_GEO_RETRIES) showGeoError(retryErr);
+            },
+            { enableHighAccuracy: true, timeout: 15000 }
+          );
+          return;
+        }
+        showGeoError(err);
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
+  }
+
+  function showGeoError(err) {
+    const msgs = {
+      1: 'Геолокация запрещена — разрешите доступ в настройках',
+      2: 'Геолокация недоступна',
+      3: 'Таймаут геолокации'
+    };
+    $('pickupText').textContent = msgs[err.code] || `Ошибка: ${err.message}`;
+  }
+
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
   }
 
   $('locationBtn').onclick = () => {
@@ -659,10 +706,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         if (rideId && socket && socket.connected) {
           socket.emit('location:update', { rideId, lat: myLat, lon: myLon });
         }
+        if (assistanceId && socket && socket.connected) {
+          socket.emit('location:update', { rideId: assistanceId, lat: myLat, lon: myLon });
+        }
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
     );
+
+    // iOS standalone: periodically re-request location if updates stop
+    if (isIOS() && isStandalone()) {
+      setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            myLat = pos.coords.latitude;
+            myLon = pos.coords.longitude;
+            if (passengerMarker) passengerMarker.setLngLat([myLon, myLat]);
+            updateRouteLine();
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      }, 30000);
+    }
   }
 
   // ═══ Status ═════════════════════════════════════════════════════════
