@@ -219,23 +219,28 @@ function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classL
 function setStatus(t,txt){$('statusChip').querySelector('.dot').className='dot '+t;$('statusText').textContent=txt}
 
 // ═══ Welcome ════════════════════════════════════════════════════
+// Try to get location early
+if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{myLat=p.coords.latitude;myLon=p.coords.longitude},()=>{},{enableHighAccuracy:true,timeout:10000})}
+
 $('modeTaxi').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
   name=$('nameInput').value.trim();mode='taxi';showScreen('request');startGeo();
 };
 $('modeAssist').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');
+  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');startGeo();
 };
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
 
 // ═══ Geolocation ═══════════════════════════════════════════════
+let geoStarted=false;
 function startGeo(){
-  if(!navigator.geolocation){$('pickupText').textContent='Геолокация недоступна';return}
+  if(geoStarted)return;geoStarted=true;
+  if(!navigator.geolocation)return;
   navigator.geolocation.watchPosition(p=>{
     myLat=p.coords.latitude;myLon=p.coords.longitude;
-    rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;updBtn()});
-  },()=>{$('pickupText').textContent='Геолокация недоступна'},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});
+    if(mode==='taxi')rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;updBtn()});
+  },()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});
 }
 async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();return d.display_name||''}catch(e){return''}}
 
@@ -317,12 +322,20 @@ function connectSocket(){
 
 // ═══ Socket (assistance) ═══════════════════════════════════════
 function connectSocketAssist(){
+  if(!myLat||!myLon){
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(p=>{myLat=p.coords.latitude;myLon=p.coords.longitude;doConnectAssist()},()=>doConnectAssist(),{enableHighAccuracy:true,timeout:8000});
+      return;
+    }
+  }
+  doConnectAssist();
+}
+function doConnectAssist(){
   socket=io(SERVER,{reconnection:true,reconnectionDelay:2000});
   socket.on('connect',()=>{
     socket.emit('passenger:register',{name});
     socket.emit('assistance:request',{passengerName:name,phone:$('phoneInput').value.trim(),carMake:$('carMakeInput').value.trim(),breakdownType:bType,description:$('descInput').value.trim(),pickup:{lat:myLat||0,lon:myLon||0}});
     $('chatTitle').textContent='Чат с мастером';
-    // show info card
     const ic=$('infoCard');ic.style.display='block';
     ic.innerHTML=`<div class="row"><span class="label">Авто</span><span class="value">${esc($('carMakeInput').value.trim())}</span></div><div class="row"><span class="label">Неисправность</span><span class="value">${bType==='electrical'?'Электрическая':'Механическая'}</span></div><div class="row"><span class="label">Телефон</span><span class="value">${esc($('phoneInput').value.trim())}</span></div>`;
   });
