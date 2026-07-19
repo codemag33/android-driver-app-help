@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS_KEY_URL = "server_url"
         private const val PREFS_KEY_ONLINE = "driver_online"
         private const val PREFS_KEY_NAME = "driver_name"
-        private const val DEFAULT_SERVER_URL = "http://127.0.0.1:3002"
+        private const val DEFAULT_SERVER_URL = "https://taxi.fbs3.ru"
     }
 
     // ─── ViewBinding ─────────────────────────────────────────────────────────

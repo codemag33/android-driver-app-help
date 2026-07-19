@@ -35,7 +35,7 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
         val pointB: LatLngData? = null,
         val pinTarget: Char? = null,
         val isPinModeActive: Boolean = false,
-        val serverUrl: String = "http://127.0.0.1:3002",
+        val serverUrl: String = "https://taxi.fbs3.ru",
         val driverName: String = "Водитель",
         val isOnline: Boolean = false
     )
