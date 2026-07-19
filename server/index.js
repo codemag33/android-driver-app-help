@@ -102,6 +102,17 @@ function findPassengerBySocket(socketId) {
   for (const p of passengers.values()) { if (p.socketId === socketId) return p; }
   return null;
 }
+function broadcastDriverLocations() {
+  const onlineDrivers = [];
+  for (const d of drivers.values()) {
+    if (d.online && d.lat != null && d.lon != null) {
+      onlineDrivers.push({ id: d.socketId, name: d.name, lat: d.lat, lon: d.lon });
+    }
+  }
+  for (const p of passengers.values()) {
+    io.to(p.socketId).emit('drivers:locations', { drivers: onlineDrivers });
+  }
+}
 
 io.on('connection', (socket) => {
   console.log(`[connect] ${socket.id}`);
@@ -150,6 +161,9 @@ io.on('connection', (socket) => {
     const driver = drivers.get(socket.id);
     if (driver) {
       if (data.lat == null || data.lon == null) return;
+      driver.lat = data.lat;
+      driver.lon = data.lon;
+      broadcastDriverLocations();
       if (data.rideId) {
         const ride = rides.get(data.rideId);
         if (ride) {
@@ -178,6 +192,11 @@ io.on('connection', (socket) => {
   socket.on('ride:driver_location', (data) => {
     const driver = drivers.get(socket.id);
     if (!driver) return;
+    if (data.lat != null && data.lon != null) {
+      driver.lat = data.lat;
+      driver.lon = data.lon;
+      broadcastDriverLocations();
+    }
     if (data.passengerId) {
       const passenger = passengers.get(data.passengerId);
       if (passenger) io.to(passenger.socketId).emit('ride:driver_location', { lat: data.lat, lon: data.lon });
