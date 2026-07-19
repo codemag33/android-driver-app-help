@@ -305,6 +305,10 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
             description = description
         )
         _waitingAssistances.update { it + assistance }
+
+        _passengerChats.update { chats ->
+            chats + (passengerId to PassengerChat(passengerId, name))
+        }
     }
 
     fun acceptAssistance(assistId: String): WaitingAssistance? {
@@ -313,6 +317,7 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
             list.map { it.copy(isActive = it.assistId == assistId) }
         }
         _activeAssistId.value = assistId
+        _tripState.update { it.copy(phase = TripPhase.TO_PICKUP, pointA = assistance.pickup, pointB = null) }
         return assistance
     }
 

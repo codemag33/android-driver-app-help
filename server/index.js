@@ -91,6 +91,17 @@ function generateRideId() { return `ride_${Date.now()}_${++rideCounter}`; }
 function generateAssistId() { return `assist_${Date.now()}_${++assistCounter}`; }
 function generatePassengerId() { return `pax_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`; }
 function timeStr() { return new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }); }
+function broadcastMechanicCount() {
+  let count = 0;
+  for (const d of drivers.values()) { if (d.online && d.role === 'mechanic') count++; }
+  for (const p of passengers.values()) {
+    io.to(p.socketId).emit('assistance:mechanics_count', { count });
+  }
+}
+function findPassengerBySocket(socketId) {
+  for (const p of passengers.values()) { if (p.socketId === socketId) return p; }
+  return null;
+}
 
 io.on('connection', (socket) => {
   console.log(`[connect] ${socket.id}`);
@@ -107,6 +118,7 @@ io.on('connection', (socket) => {
     };
     drivers.set(socket.id, driver);
     console.log(`[driver:register] ${driver.name} (role=${driver.role}) — drivers online: ${drivers.size}`);
+    broadcastMechanicCount();
   });
 
   socket.on('ride:accept', (data) => {
@@ -136,12 +148,29 @@ io.on('connection', (socket) => {
 
   socket.on('location:update', (data) => {
     const driver = drivers.get(socket.id);
-    if (!driver) return;
-    if (data.rideId) {
-      const ride = rides.get(data.rideId);
-      if (ride) {
-        const passenger = passengers.get(ride.passengerId);
-        if (passenger) io.to(passenger.socketId).emit('ride:driver_location', { lat: data.lat, lon: data.lon });
+    if (driver) {
+      if (data.lat == null || data.lon == null) return;
+      if (data.rideId) {
+        const ride = rides.get(data.rideId);
+        if (ride) {
+          const passenger = passengers.get(ride.passengerId);
+          if (passenger) io.to(passenger.socketId).emit('ride:driver_location', { lat: data.lat, lon: data.lon });
+        }
+        const assist = assists.get(data.rideId);
+        if (assist) {
+          const passenger = passengers.get(assist.passengerId);
+          if (passenger) io.to(passenger.socketId).emit('ride:driver_location', { lat: data.lat, lon: data.lon });
+        }
+      }
+      return;
+    }
+    const passenger = findPassengerBySocket(socket.id);
+    if (!passenger) return;
+    if (data.lat == null || data.lon == null) return;
+    if (Math.abs(data.lat) < 0.01 || Math.abs(data.lon) < 0.01) return;
+    for (const [, assist] of assists) {
+      if (assist.passengerId === passenger.id && assist.driverId) {
+        io.to(assist.driverId).emit('passenger:location', { passengerId: passenger.id, lat: data.lat, lon: data.lon });
       }
     }
   });
@@ -288,8 +317,10 @@ io.on('connection', (socket) => {
     assistHistory.push({ id: assistId, passengerName: passenger.name, carMake: assist.carMake, phone: assist.phone, breakdownType: assist.breakdownType, status: 'waiting', time: timeStr() });
     console.log(`[assistance:request] ${passenger.name}: ${assist.carMake} (${assist.breakdownType}) phone=${assist.phone}`);
 
+    let mechanicCount = 0;
     for (const driver of drivers.values()) {
       if (driver.online && driver.role === 'mechanic') {
+        mechanicCount++;
         io.to(driver.socketId).emit('assistance:waiting', {
           assistId, passengerId: passenger.id, passengerName: passenger.name,
           pickup: assist.pickup, carMake: assist.carMake, phone: assist.phone,
@@ -297,6 +328,7 @@ io.on('connection', (socket) => {
         });
       }
     }
+    socket.emit('assistance:mechanics_count', { count: mechanicCount });
   });
 
   socket.on('assistance:accept', (data) => {
@@ -362,6 +394,7 @@ io.on('connection', (socket) => {
         }
       }
       drivers.delete(socket.id);
+      broadcastMechanicCount();
     }
     for (const [id, passenger] of passengers) {
       if (passenger.socketId === socket.id) {

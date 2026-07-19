@@ -169,6 +169,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </div>
     </div>
     <div class="field"><label for="descInput">Описание неисправности</label><textarea id="descInput" rows="3" placeholder="Опишите проблему..."></textarea></div>
+    <div id="mechCount" style="display:none;text-align:center;padding:10px;margin-top:10px;background:var(--card2);border-radius:var(--radius);font-size:14px;color:var(--text2)">🔍 Мастеров в сети: <span id="mechCountVal" style="color:var(--green);font-weight:700">0</span></div>
     <button class="btn btn-red" id="assistSubmit" disabled>Найти мастера</button>
     <div class="back-link" id="assistBack">← Назад</div>
   </div>
@@ -228,7 +229,7 @@ $('modeTaxi').onclick=()=>{
 };
 $('modeAssist').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');startGeo();
+  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');startGeo();loadMechanicCount();
 };
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
 
@@ -256,7 +257,7 @@ function updBtn(){$('requestBtn').disabled=!(myLat&&myLon&&destLat&&destLon)}
 
 // ═══ Taxi request ═══
 $('taxiBack').onclick=()=>showScreen('welcome');
-$('requestBtn').onclick=()=>{if(!myLat||!myLon||!destLat||!destLon)return;connectSocket();showScreen('mapScreen');initMap()};
+$('requestBtn').onclick=()=>{if(!myLat||!myLon||!destLat||!destLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01)return;connectSocket();showScreen('mapScreen');initMap()};
 
 // ═══ Assistance form ═══
 $('assistBack').onclick=()=>showScreen('welcome');
@@ -265,7 +266,7 @@ $('typeElec').onclick=()=>{bType='electrical';$('typeElec').classList.add('sel')
 $('typeMech').onclick=()=>{bType='mechanical';$('typeMech').classList.add('sel');$('typeElec').classList.remove('sel');updAssistBtn()};
 ['phoneInput','carMakeInput','descInput'].forEach(id=>$(id).addEventListener('input',updAssistBtn));
 function updAssistBtn(){$('assistSubmit').disabled=!($('phoneInput').value.trim()&&$('carMakeInput').value.trim()&&bType)}
-$('assistSubmit').onclick=()=>{if(!$('phoneInput').value.trim()||!$('carMakeInput').value.trim()||!bType)return;connectSocketAssist();showScreen('mapScreen');initMap()};
+$('assistSubmit').onclick=()=>{if(!$('phoneInput').value.trim()||!$('carMakeInput').value.trim()||!bType||!myLat||!myLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01)return;connectSocketAssist();showScreen('mapScreen');initMap()};
 
 // ═══ Map ═══════════════════════════════════════════════════════
 let pMarker=null,dMarker=null,routeSrc=null;
@@ -339,7 +340,8 @@ function doConnectAssist(){
     const ic=$('infoCard');ic.style.display='block';
     ic.innerHTML=`<div class="row"><span class="label">Авто</span><span class="value">${esc($('carMakeInput').value.trim())}</span></div><div class="row"><span class="label">Неисправность</span><span class="value">${bType==='electrical'?'Электрическая':'Механическая'}</span></div><div class="row"><span class="label">Телефон</span><span class="value">${esc($('phoneInput').value.trim())}</span></div>`;
   });
-  socket.on('assistance:accepted',d=>{assistId=d.assistId;setStatus('driving','Мастер в пути!');$('cancelBtn').style.display='none';$('chatFab').style.display='flex'});
+  socket.on('assistance:accepted',d=>{assistId=d.assistId;setStatus('driving','Мастер в пути!');$('cancelBtn').style.display='none';$('chatFab').style.display='flex';$('mechCount').style.display='none'});
+  socket.on('assistance:mechanics_count',d=>{$('mechCount').style.display='block';$('mechCountVal').textContent=d.count});
   socket.on('assistance:driver_location',d=>{driverLat=d.lat;driverLon=d.lon;updDriver()});
   socket.on('chat:message',d=>{addMsg(d.from==='driver'?(mode==='assist'?'Мастер':'Водитель'):'Вы',d.text,d.from==='driver');if(!chatOpen&&d.from==='driver'){unread++;$('chatBadge').textContent=unread;$('chatBadge').style.display='flex'}});
   socket.on('assistance:finished',()=>{$('finishedOverlay').style.display='flex';$('chatFab').style.display='none';$('finText').textContent='Помощь завершена';$('finSub').textContent='Мастер завершил работу. Спасибо!'});
@@ -356,6 +358,15 @@ function sendChat(){const t=$('chatInput').value.trim();if(!t||!socket)return;so
 
 // ═══ Helpers ═══════════════════════════════════════════════════
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function loadMechanicCount(){
+  const tmp=io(SERVER,{reconnection:false,forceNew:true,transports:['websocket','polling']});
+  tmp.on('connect',()=>{tmp.emit('passenger:register',{name});tmp.disconnect()});
+  tmp.on('assistance:mechanics_count',d=>{
+    $('mechCount').style.display='block';$('mechCountVal').textContent=d.count;
+    tmp.disconnect();
+  });
+  setTimeout(()=>{try{tmp.disconnect()}catch(e){}},5000);
+}
 function cleanup(){if(watchId)navigator.geolocation.clearWatch(watchId);if(socket){socket.disconnect();socket=null}rideId=null;assistId=null;driverLat=null;driverLon=null;chatOpen=false;unread=0;$('chatMessages').innerHTML='';$('chatBadge').style.display='none';$('chatModal').classList.remove('open');$('chatFab').style.display='none';$('infoCard').style.display='none';$('finishedOverlay').style.display='none';$('cancelBtn').style.display='block';if(dMarker)dMarker.getElement().style.display='none';if(map){map.remove();map=null;pMarker=null;dMarker=null;routeSrc=null}setStatus('waiting',mode==='taxi'?'Ищем водителя...':'Ищем мастера...')}
 
 })();

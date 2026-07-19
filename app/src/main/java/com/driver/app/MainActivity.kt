@@ -397,6 +397,7 @@ class MainActivity : AppCompatActivity() {
         // Set route points (pickup only, no destination for assistance)
         val pickup = LatLng(accepted.pickup.lat, accepted.pickup.lon)
         setPoint('A', pickup, getString(R.string.pickup_label_format, accepted.name))
+        binding.routeInputsContainer.visibility = View.GONE
         mapLibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(pickup, 17.0))
 
         showToast(R.string.toast_passenger_accepted, accepted.name)
@@ -828,10 +829,20 @@ class MainActivity : AppCompatActivity() {
             }
             RideViewModel.TripPhase.TO_PICKUP -> {
                 viewModel.passengerInCar()
-                launchYandexNavigator(viewModel.tripState.value.pointB!!)
+                val dest = viewModel.tripState.value.pointB
+                if (dest != null) {
+                    launchYandexNavigator(dest)
+                } else {
+                    launchYandexNavigator(viewModel.tripState.value.pointA!!)
+                }
             }
             RideViewModel.TripPhase.WITH_PASSENGER -> {
-                launchYandexNavigator(viewModel.tripState.value.pointB!!)
+                val dest = viewModel.tripState.value.pointB
+                if (dest != null) {
+                    launchYandexNavigator(dest)
+                } else {
+                    launchYandexNavigator(viewModel.tripState.value.pointA!!)
+                }
             }
         }
     }
