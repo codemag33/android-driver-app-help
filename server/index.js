@@ -158,22 +158,44 @@ io.on('connection', (socket) => {
   socket.on('chat:message', (data) => {
     const driver = drivers.get(socket.id);
     if (driver) {
+      // Водитель → пассажир (мульти-протокол: ищем активный ride/assist по driverId)
+      const text = data.text;
+      if (data.passengerId) {
+        // Новый протокол: ищем ride по passengerId
+        for (const [, ride] of rides) {
+          if (ride.passengerId === data.passengerId && ride.driverId === socket.id) {
+            const passenger = passengers.get(data.passengerId);
+            if (passenger) io.to(passenger.socketId).emit('chat:message', { from: 'driver', text, ts: Date.now() });
+            return;
+          }
+        }
+      }
+      // Старый протокол: ищем ride по rideId
       if (data.rideId) {
         const ride = rides.get(data.rideId);
         if (ride) {
           const passenger = passengers.get(ride.passengerId);
-          if (passenger) io.to(passenger.socketId).emit('chat:message', { from: 'driver', text: data.text, ts: Date.now() });
+          if (passenger) io.to(passenger.socketId).emit('chat:message', { from: 'driver', text, ts: Date.now() });
         }
       }
       return;
     }
+    // Пассажир → водитель
     let passenger = null;
     for (const p of passengers.values()) { if (p.socketId === socket.id) { passenger = p; break; } }
     if (!passenger) return;
-    if (passenger.rideId) {
-      const ride = rides.get(passenger.rideId);
-      if (ride && ride.driverId) {
+    // Ищем активный ride по passengerId
+    for (const [, ride] of rides) {
+      if (ride.passengerId === passenger.id && ride.driverId) {
         io.to(ride.driverId).emit('passenger:chat', { passengerId: passenger.id, from: 'passenger', text: data.text, ts: Date.now() });
+        return;
+      }
+    }
+    // Ищем активный assist по passengerId
+    for (const [, assist] of assists) {
+      if (assist.passengerId === passenger.id && assist.driverId) {
+        io.to(assist.driverId).emit('passenger:chat', { passengerId: passenger.id, from: 'passenger', text: data.text, ts: Date.now() });
+        return;
       }
     }
   });
