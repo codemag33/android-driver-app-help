@@ -152,7 +152,8 @@ class MainActivity : AppCompatActivity() {
 
         serverUrl = loadServerUrl()
         driverDisplayName = loadDriverName()
-        driverRole = loadDriverRole()
+        driverRole = intent.getStringExtra("driver_role") ?: loadDriverRole()
+        saveDriverRole(driverRole)
         setupRideSocket()
         setupOnlineStatus()
         handleIntent(intent)

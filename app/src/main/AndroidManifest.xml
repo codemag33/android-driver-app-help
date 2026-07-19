@@ -29,12 +29,18 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.DriverApp">
 
+        <!-- ─── Login Activity (launcher) ─────────────────────────────── -->
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DriverApp">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- ─── Главная Activity ──────────────────────────────────────────── -->
-        <!--
-            supportsPictureInPicture — разрешает PiP-режим.
-            configChanges — без перечисленных изменений Android НЕ пересоздаёт
-            Activity при смене ориентации / размера окна (критично для PiP).
-        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -42,16 +48,6 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:launchMode="singleTop">
 
-            <!-- Deep-link для возврата из Яндекс Навигатора -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
-            <!--
-                Схема tuarip://trip_ended — Яндекс Навигатор вызовет этот URI
-                через параметр back_url после завершения маршрута.
-            -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
