@@ -37,12 +37,13 @@ app.get('/api/admin', (_, res) => {
     port: PORT,
     drivers: [...drivers.values()].map(d => ({ socketId: d.socketId, name: d.name })),
     passengers: [...passengers.values()].map(p => ({ socketId: p.socketId, id: p.id, name: p.name, rideId: p.rideId })),
-    rides: [...rides.values()].map(r => ({ id: r.id, passengerId: r.passengerId, driverId: r.driverId, status: r.status }))
+    rides: [...rides.values()].map(r => ({ id: r.id, passengerId: r.passengerId, driverId: r.driverId, status: r.status })),
+    assists: [...assists.values()].map(a => ({ id: a.id, passengerName: a.passengerName, carMake: a.carMake, breakdownType: a.breakdownType, status: a.status }))
   });
 });
 
 // Health check
-app.get('/health', (_, res) => res.json({ status: 'ok', drivers: drivers.size, passengers: passengers.size, rides: rides.size }));
+app.get('/health', (_, res) => res.json({ status: 'ok', drivers: drivers.size, passengers: passengers.size, rides: rides.size, assists: assists.size }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -61,10 +62,18 @@ const passengers = new Map();
 /** @type {Map<string, {id:string, passengerId:string, driverId:string|null, status:string}>} */
 const rides = new Map();
 
+/** @type {Map<string, {id:string, passengerId:string, passengerSocketId:string, driverId:string|null, passengerName:string, pickup:any, carMake:string, breakdownType:string, status:string}>} */
+const assists = new Map();
+
 let rideCounter = 0;
+let assistCounter = 0;
 
 function generateRideId() {
   return `ride_${Date.now()}_${++rideCounter}`;
+}
+
+function generateAssistId() {
+  return `assist_${Date.now()}_${++assistCounter}`;
 }
 
 function generatePassengerId() {
@@ -352,6 +361,130 @@ io.on('connection', (socket) => {
     console.log(`[ride:cancel] ${passenger.name} cancelled`);
   });
 
+  // ─── Помощь на дороге ─────────────────────────────────────────────────────
+
+  socket.on('assistance:request', (data) => {
+    let passenger = null;
+    for (const p of passengers.values()) {
+      if (p.socketId === socket.id) { passenger = p; break; }
+    }
+    if (!passenger) return;
+
+    const pickup = data.pickup || { lat: 0, lon: 0 };
+    const carMake = data.carMake || '';
+    const breakdownType = data.breakdownType || 'unknown';
+    const assistId = generateAssistId();
+
+    const assist = {
+      id: assistId,
+      passengerId: passenger.id,
+      passengerSocketId: socket.id,
+      driverId: null,
+      passengerName: passenger.name,
+      pickup,
+      carMake,
+      breakdownType,
+      status: 'waiting'
+    };
+    assists.set(assistId, assist);
+
+    console.log(`[assistance:request] ${passenger.name}: ${carMake} (${breakdownType}) at ${pickup.lat.toFixed(5)},${pickup.lon.toFixed(5)}`);
+
+    for (const driver of drivers.values()) {
+      if (driver.online) {
+        io.to(driver.socketId).emit('assistance:waiting', {
+          assistId,
+          passengerId: passenger.id,
+          passengerName: passenger.name,
+          pickup,
+          carMake,
+          breakdownType
+        });
+      }
+    }
+  });
+
+  socket.on('assistance:accept', (data) => {
+    const driver = drivers.get(socket.id);
+    if (!driver) return;
+
+    const assistId = data.assistId;
+    if (!assistId) return;
+
+    const assist = assists.get(assistId);
+    if (!assist || assist.status !== 'waiting') return;
+
+    assist.driverId = socket.id;
+    assist.status = 'active';
+
+    io.to(assist.passengerSocketId).emit('assistance:accepted', {
+      assistId,
+      driverName: driver.name,
+      driverLat: 0,
+      driverLon: 0
+    });
+
+    socket.emit('assistance:ride_accepted', {
+      assistId,
+      passengerId: assist.passengerId
+    });
+
+    console.log(`[assistance:accept] Driver ${driver.name} accepted assistance ${assistId}`);
+  });
+
+  socket.on('assistance:cancel', (data) => {
+    let passenger = null;
+    for (const p of passengers.values()) {
+      if (p.socketId === socket.id) { passenger = p; break; }
+    }
+    if (!passenger) return;
+
+    const assistId = data.assistId;
+    if (!assistId) return;
+
+    const assist = assists.get(assistId);
+    if (!assist) return;
+
+    if (assist.driverId) {
+      io.to(assist.driverId).emit('assistance:cancelled', { assistId });
+    }
+
+    assists.delete(assistId);
+    console.log(`[assistance:cancel] ${passenger.name} cancelled assistance ${assistId}`);
+  });
+
+  socket.on('assistance:finish', (data) => {
+    const driver = drivers.get(socket.id);
+    if (!driver) return;
+
+    const assistId = data.assistId;
+    if (!assistId) return;
+
+    const assist = assists.get(assistId);
+    if (!assist) return;
+
+    io.to(assist.passengerSocketId).emit('assistance:finished', { assistId });
+    assists.delete(assistId);
+    console.log(`[assistance:finish] Driver ${driver.name} finished assistance ${assistId}`);
+  });
+
+  socket.on('assistance:driver_location', (data) => {
+    const driver = drivers.get(socket.id);
+    if (!driver) return;
+
+    const assistId = data.assistId;
+    if (!assistId) return;
+
+    const assist = assists.get(assistId);
+    if (!assist) return;
+
+    io.to(assist.passengerSocketId).emit('assistance:driver_location', {
+      assistId,
+      lat: data.lat,
+      lon: data.lon
+    });
+  });
+
   // ─── Disconnect ───────────────────────────────────────────────────────────
 
   socket.on('disconnect', () => {
@@ -359,6 +492,13 @@ io.on('connection', (socket) => {
 
     // Проверяем — водитель?
     if (drivers.has(socket.id)) {
+      // Уведомляем пассажиров об отключении водителя
+      for (const [id, assist] of assists) {
+        if (assist.driverId === socket.id && assist.status === 'active') {
+          io.to(assist.passengerSocketId).emit('assistance:driver_disconnected', { assistId: id });
+          assists.delete(id);
+        }
+      }
       drivers.delete(socket.id);
       console.log(`[driver disconnected] drivers online: ${drivers.size}`);
     }

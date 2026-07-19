@@ -76,6 +76,16 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
         val messages: List<ChatMessage> = emptyList()
     )
 
+    data class WaitingAssistance(
+        val assistId: String,
+        val passengerId: String,
+        val name: String,
+        val pickup: LatLngData,
+        val carMake: String,
+        val breakdownType: String,
+        var isActive: Boolean = false
+    )
+
     // ─── UI State Flows ──────────────────────────────────────────────────────
 
     private val _tripState = MutableStateFlow(TripState())
@@ -99,6 +109,12 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _passengerChats = MutableStateFlow<Map<String, PassengerChat>>(emptyMap())
     val passengerChats: StateFlow<Map<String, PassengerChat>> = _passengerChats.asStateFlow()
+
+    private val _waitingAssistances = MutableStateFlow<List<WaitingAssistance>>(emptyList())
+    val waitingAssistances: StateFlow<List<WaitingAssistance>> = _waitingAssistances.asStateFlow()
+
+    private val _activeAssistId = MutableStateFlow<String?>(null)
+    val activeAssistId: StateFlow<String?> = _activeAssistId.asStateFlow()
 
     // ─── Search debounce ─────────────────────────────────────────────────────
 
@@ -202,6 +218,8 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
         _waitingPassengers.value = emptyList()
         _activePassengerId.value = null
         _passengerChats.value = emptyMap()
+        _waitingAssistances.value = emptyList()
+        _activeAssistId.value = null
     }
 
     // ─── Chat (старый протокол) ──────────────────────────────────────────────
@@ -265,7 +283,40 @@ class RideViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun isAcceptingAllowed(): Boolean {
-        return _activePassengerId.value == null && _tripState.value.phase == TripPhase.SELECTING
+        return _activePassengerId.value == null && _activeAssistId.value == null && _tripState.value.phase == TripPhase.SELECTING
+    }
+
+    // ─── Помощь на дороге ────────────────────────────────────────────────────
+
+    fun addWaitingAssistance(assistId: String, passengerId: String, name: String, pickupLat: Double, pickupLon: Double, carMake: String, breakdownType: String) {
+        val existing = _waitingAssistances.value.find { it.assistId == assistId }
+        if (existing != null) return
+
+        val assistance = WaitingAssistance(
+            assistId = assistId,
+            passengerId = passengerId,
+            name = name,
+            pickup = LatLngData(pickupLat, pickupLon),
+            carMake = carMake,
+            breakdownType = breakdownType
+        )
+        _waitingAssistances.update { it + assistance }
+    }
+
+    fun acceptAssistance(assistId: String): WaitingAssistance? {
+        val assistance = _waitingAssistances.value.find { it.assistId == assistId } ?: return null
+        _waitingAssistances.update { list ->
+            list.map { it.copy(isActive = it.assistId == assistId) }
+        }
+        _activeAssistId.value = assistId
+        return assistance
+    }
+
+    fun removeAssistance(assistId: String) {
+        _waitingAssistances.update { list -> list.filter { it.assistId != assistId } }
+        if (_activeAssistId.value == assistId) {
+            _activeAssistId.value = null
+        }
     }
 
     // ─── Чат с конкретным пассажиром ─────────────────────────────────────────

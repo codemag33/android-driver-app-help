@@ -174,6 +174,23 @@
         tools:listitem="@layout/item_passenger"
         tools:visibility="visible" />
 
+    <!-- ═══ Waiting assistance list ═══ -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvAssistances"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"
+        android:clipToPadding="false"
+        android:maxHeight="260dp"
+        app:layout_constraintTop_toBottomOf="@id/rvPassengers"
+        app:layout_constraintBottom_toTopOf="@id/fullUiGroup"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_assistance"
+        tools:visibility="visible" />
+
     <!-- ═══ Confirm pin button (hidden by default) ═══ -->
     <Button
         android:id="@+id/btnConfirmPin"

@@ -99,6 +99,16 @@
     <string name="toast_passenger_left">%1$s отменил поездку</string>
     <string name="toast_active_ride_exists">Сначала завершите текущую поездку</string>
 
+    <!-- ─── Roadside assistance ───────────────────────────────────────────── -->
+    <string name="assistance_title">Помощь на дороге</string>
+    <string name="assistance_car_label">Автомобиль</string>
+    <string name="assistance_type_electrical">Электрическая</string>
+    <string name="assistance_type_mechanical">Механическая</string>
+    <string name="toast_assistance_waiting">%1$s вызывает помощь на дороге</string>
+    <string name="toast_assistance_cancelled">%1$s отменил вызов помощи</string>
+    <string name="toast_assistance_finished">Вызов помощи завершён</string>
+    <string name="toast_assistance_passenger_disconnected">Пассажир отключился</string>
+
     <!-- ─── Bottom sheet ─────────────────────────────────────────────────────── -->
     <string name="btn_cancel">Отмена</string>
     <string name="btn_go">Поехали</string>

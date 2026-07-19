@@ -34,6 +34,10 @@ class RideSocketManager(
     var activeRides: MutableMap<String, String> = mutableMapOf()
         private set
 
+    /** Маппинг assistId → passengerId для активных вызовов помощи */
+    var activeAssists: MutableMap<String, String> = mutableMapOf()
+        private set
+
     // ─── Callbacks ───────────────────────────────────────────────────────────
     var onConnected: (() -> Unit)? = null
     var onConnectError: ((String) -> Unit)? = null
@@ -54,6 +58,14 @@ class RideSocketManager(
     var onPassengerRideAccepted: ((passengerId: String, rideId: String) -> Unit)? = null
     var onPassengerRideFinished: ((passengerId: String) -> Unit)? = null
     var onPassengerCancelled: ((passengerId: String) -> Unit)? = null
+
+    // Помощь на дороге
+    var onAssistanceWaiting: ((assistId: String, passengerId: String, passengerName: String, pickupLat: Double, pickupLon: Double, carMake: String, breakdownType: String) -> Unit)? = null
+    var onAssistanceAccepted: ((assistId: String, passengerId: String) -> Unit)? = null
+    var onAssistanceCancelled: ((assistId: String) -> Unit)? = null
+    var onAssistanceFinished: ((assistId: String) -> Unit)? = null
+    var onAssistanceDriverLocation: ((assistId: String, lat: Double, lon: Double) -> Unit)? = null
+    var onAssistanceDriverDisconnected: ((assistId: String) -> Unit)? = null
 
     fun connect() {
         if (socket?.connected() == true) return
@@ -183,6 +195,67 @@ class RideSocketManager(
                 )
             }
 
+            // ─── Помощь на дороге ──────────────────────────────────────────
+            s.on("assistance:waiting") { args ->
+                val data = args.firstOrNull() as? JSONObject ?: return@on
+                val pickup = data.optJSONObject("pickup") ?: return@on
+                val assistId = data.optString("assistId")
+                val passengerId = data.optString("passengerId")
+                if (assistId.isEmpty() || passengerId.isEmpty()) return@on
+                onAssistanceWaiting?.invoke(
+                    assistId,
+                    passengerId,
+                    data.optString("passengerName", "Пассажир"),
+                    pickup.optDouble("lat"),
+                    pickup.optDouble("lon"),
+                    data.optString("carMake", ""),
+                    data.optString("breakdownType", "unknown")
+                )
+            }
+            s.on("assistance:ride_accepted") { args ->
+                val data = args.firstOrNull() as? JSONObject ?: return@on
+                val assistId = data.optString("assistId")
+                val passengerId = data.optString("passengerId")
+                if (assistId.isNotEmpty() && passengerId.isNotEmpty()) {
+                    activeAssists[assistId] = passengerId
+                }
+                onAssistanceAccepted?.invoke(assistId, passengerId)
+            }
+            s.on("assistance:cancelled") { args ->
+                val data = args.firstOrNull() as? JSONObject ?: return@on
+                val assistId = data.optString("assistId")
+                if (assistId.isNotEmpty()) {
+                    activeAssists.remove(assistId)
+                }
+                onAssistanceCancelled?.invoke(assistId)
+            }
+            s.on("assistance:finished") { args ->
+                val data = args.firstOrNull() as? JSONObject ?: return@on
+                val assistId = data.optString("assistId")
+                if (assistId.isNotEmpty()) {
+                    activeAssists.remove(assistId)
+                }
+                onAssistanceFinished?.invoke(assistId)
+            }
+            s.on("assistance:driver_location") { args ->
+                val data = args.firstOrNull() as? JSONObject ?: return@on
+                val assistId = data.optString("assistId")
+                if (assistId.isEmpty()) return@on
+                onAssistanceDriverLocation?.invoke(
+                    assistId,
+                    data.optDouble("lat"),
+                    data.optDouble("lon")
+                )
+            }
+            s.on("assistance:driver_disconnected") { args ->
+                val data = args.firstOrNull() as? JSONObject ?: return@on
+                val assistId = data.optString("assistId")
+                if (assistId.isNotEmpty()) {
+                    activeAssists.remove(assistId)
+                }
+                onAssistanceDriverDisconnected?.invoke(assistId)
+            }
+
             s.connect()
         } catch (e: URISyntaxException) {
             Log.e(TAG, "Invalid server URL: $serverUrl", e)
@@ -254,6 +327,22 @@ class RideSocketManager(
             JSONObject().put("passengerId", passengerId)
         )
         activeRides.remove(passengerId)
+    }
+
+    fun acceptAssistance(assistId: String) {
+        socket?.emit("assistance:accept", JSONObject().put("assistId", assistId))
+    }
+
+    fun finishAssistance(assistId: String) {
+        socket?.emit("assistance:finish", JSONObject().put("assistId", assistId))
+        activeAssists.remove(assistId)
+    }
+
+    fun sendAssistanceLocation(assistId: String, lat: Double, lon: Double) {
+        socket?.emit(
+            "assistance:driver_location",
+            JSONObject().put("assistId", assistId).put("lat", lat).put("lon", lon)
+        )
     }
 
     fun disconnect() {

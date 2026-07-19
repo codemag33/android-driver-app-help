@@ -108,6 +108,9 @@ class MainActivity : AppCompatActivity() {
     // ─── Passenger list ──────────────────────────────────────────────────────
     private var passengerAdapter: PassengerAdapter? = null
 
+    // ─── Assistance list ─────────────────────────────────────────────────────
+    private var assistanceAdapter: AssistanceAdapter? = null
+
     // ─── Fallback location ───────────────────────────────────────────────────
     private val fallbackLat = 55.751244
     private val fallbackLon = 37.618423
@@ -143,6 +146,7 @@ class MainActivity : AppCompatActivity() {
         setupBackPressed()
         setupViewModelObservers()
         setupPassengerList()
+        setupAssistanceList()
 
         serverUrl = loadServerUrl()
         driverDisplayName = loadDriverName()
@@ -209,6 +213,14 @@ class MainActivity : AppCompatActivity() {
                     viewModel.waitingPassengers.collect { passengers ->
                         passengerAdapter?.submitList(passengers)
                         binding.rvPassengers.visibility = if (passengers.isNotEmpty()) View.VISIBLE else View.GONE
+                    }
+                }
+
+                // Waiting assistance list → update RecyclerView
+                launch {
+                    viewModel.waitingAssistances.collect { assistances ->
+                        assistanceAdapter?.submitList(assistances)
+                        binding.rvAssistances.visibility = if (assistances.isNotEmpty()) View.VISIBLE else View.GONE
                     }
                 }
             }
@@ -336,6 +348,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupAssistanceList() {
+        assistanceAdapter = AssistanceAdapter(
+            onAccept = { assistance -> acceptAssistanceRequest(assistance) },
+            onChat = { assistance -> openPassengerChatDialog(RideViewModel.WaitingPassenger(
+                assistance.passengerId, assistance.name, assistance.pickup,
+                assistance.pickup, false
+            )) }
+        )
+        binding.rvAssistances.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = assistanceAdapter
+        }
+    }
+
     private fun acceptPassenger(passenger: RideViewModel.WaitingPassenger) {
         if (!viewModel.isAcceptingAllowed()) {
             showToast(R.string.toast_active_ride_exists)
@@ -350,6 +376,23 @@ class MainActivity : AppCompatActivity() {
         val dest = LatLng(accepted.destination.lat, accepted.destination.lon)
         setPoint('A', pickup, getString(R.string.pickup_label_format, accepted.name))
         setPoint('B', dest, getString(R.string.dest_label_format, accepted.name))
+        mapLibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(pickup, 17.0))
+
+        showToast(R.string.toast_passenger_accepted, accepted.name)
+    }
+
+    private fun acceptAssistanceRequest(assistance: RideViewModel.WaitingAssistance) {
+        if (!viewModel.isAcceptingAllowed()) {
+            showToast(R.string.toast_active_ride_exists)
+            return
+        }
+        rideSocket.acceptAssistance(assistance.assistId)
+        val accepted = viewModel.acceptAssistance(assistance.assistId) ?: return
+        mapController.setActivePassenger(mapLibreMap, assistance.passengerId)
+
+        // Set route points (pickup only, no destination for assistance)
+        val pickup = LatLng(accepted.pickup.lat, accepted.pickup.lon)
+        setPoint('A', pickup, getString(R.string.pickup_label_format, accepted.name))
         mapLibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(pickup, 17.0))
 
         showToast(R.string.toast_passenger_accepted, accepted.name)
@@ -463,6 +506,10 @@ class MainActivity : AppCompatActivity() {
                     // Отправляем локацию водителя всем активным пассажирам
                     rideSocket.activeRides.forEach { (passengerId, _) ->
                         rideSocket.sendDriverLocation(passengerId, loc.latitude, loc.longitude)
+                    }
+                    // Отправляем локацию водителя всем активным вызовам помощи
+                    rideSocket.activeAssists.forEach { (assistId, _) ->
+                        rideSocket.sendAssistanceLocation(assistId, loc.latitude, loc.longitude)
                     }
                     // Старый протокол
                     if (rideSocket.currentRideId != null) {
@@ -669,8 +716,60 @@ class MainActivity : AppCompatActivity() {
         override fun getItemCount(): Int = items.size
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Pin selection mode
+    // ─── AssistanceAdapter ─────────────────────────────────────────────────
+
+    private inner class AssistanceAdapter(
+        private val onAccept: (RideViewModel.WaitingAssistance) -> Unit,
+        private val onChat: (RideViewModel.WaitingAssistance) -> Unit
+    ) : RecyclerView.Adapter<AssistanceAdapter.VH>() {
+
+        private val items = mutableListOf<RideViewModel.WaitingAssistance>()
+
+        fun submitList(newItems: List<RideViewModel.WaitingAssistance>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+
+        inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+            val dot: View = view.findViewById(R.id.assistanceDot)
+            val title: TextView = view.findViewById(R.id.tvAssistanceTitle)
+            val status: TextView = view.findViewById(R.id.tvAssistanceStatus)
+            val car: TextView = view.findViewById(R.id.tvAssistanceCar)
+            val type: TextView = view.findViewById(R.id.tvAssistanceType)
+            val pickup: TextView = view.findViewById(R.id.tvAssistancePickup)
+            val btnAccept: Button = view.findViewById(R.id.btnAssistanceAccept)
+            val btnChat: Button = view.findViewById(R.id.btnAssistanceChat)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_assistance, parent, false)
+            return VH(view)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val a = items[position]
+            holder.title.text = a.name
+            holder.car.text = getString(R.string.assistance_car_label) + ": " + a.carMake
+            val typeText = if (a.breakdownType == "electrical") getString(R.string.assistance_type_electrical) else getString(R.string.assistance_type_mechanical)
+            holder.type.text = typeText
+            holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", a.pickup.lat, a.pickup.lon)
+
+            if (a.isActive) {
+                holder.status.setText(R.string/passenger_active)
+                holder.dot.setBackgroundResource(R.drawable.bg_online_dot)
+                holder.btnAccept.visibility = View.GONE
+            } else {
+                holder.status.setText(R.string/passenger_waiting)
+                holder.dot.setBackgroundResource(R.drawable.bg_assistance_dot)
+                holder.btnAccept.visibility = View.VISIBLE
+                holder.btnAccept.setOnClickListener { onAccept(a) }
+            }
+            holder.btnChat.setOnClickListener { onChat(a) }
+        }
+
+        override fun getItemCount(): Int = items.size
+    }
     // ═══════════════════════════════════════════════════════════════════════════
 
     private fun enterPinSelectionMode(target: Char) {
@@ -803,6 +902,7 @@ class MainActivity : AppCompatActivity() {
             binding.searchBarContainer.visibility = View.INVISIBLE
             binding.statusRow.visibility = View.INVISIBLE
             binding.rvPassengers.visibility = View.GONE
+            binding.rvAssistances.visibility = View.GONE
             binding.routeInputsContainer.visibility = View.GONE
             binding.btnConfirmPin.visibility = View.GONE
             binding.fabMyLocation.visibility = View.INVISIBLE
@@ -814,6 +914,7 @@ class MainActivity : AppCompatActivity() {
             binding.searchBarContainer.visibility = View.VISIBLE
             binding.statusRow.visibility = View.VISIBLE
             if (viewModel.waitingPassengers.value.isNotEmpty()) binding.rvPassengers.visibility = View.VISIBLE
+            if (viewModel.waitingAssistances.value.isNotEmpty()) binding.rvAssistances.visibility = View.VISIBLE
             val state = viewModel.tripState.value
             if (state.pointA != null || state.pointB != null) binding.routeInputsContainer.visibility = View.VISIBLE
             binding.fabMyLocation.visibility = View.VISIBLE
@@ -830,6 +931,10 @@ class MainActivity : AppCompatActivity() {
         // Завершаем все активные поездки (мульти-пассажиры)
         rideSocket.activeRides.keys.toList().forEach { passengerId ->
             rideSocket.finishPassengerRide(passengerId)
+        }
+        // Завершаем все активные вызовы помощи
+        rideSocket.activeAssists.keys.toList().forEach { assistId ->
+            rideSocket.finishAssistance(assistId)
         }
         rideSocket.finishRide()
         rideRequestDialog?.dismiss()
@@ -851,6 +956,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnConfirmPin.visibility = View.GONE
         binding.routeInputsContainer.visibility = View.GONE
         binding.rvPassengers.visibility = View.GONE
+        binding.rvAssistances.visibility = View.GONE
         binding.destPin.visibility = View.GONE
         chatLogView = null
 
@@ -955,6 +1061,40 @@ class MainActivity : AppCompatActivity() {
         rideSocket.onPassengerChatMessage = { passengerId, from, text, _ ->
             runOnUiThread {
                 viewModel.appendPassengerChat(passengerId, from, text)
+            }
+        }
+
+        // ─── Помощь на дороге ──────────────────────────────────────────────
+        rideSocket.onAssistanceWaiting = { assistId, passengerId, name, pLat, pLon, carMake, breakdownType ->
+            runOnUiThread {
+                viewModel.addWaitingAssistance(assistId, passengerId, name, pLat, pLon, carMake, breakdownType)
+                mapController.addWaitingPassenger(mapLibreMap, passengerId, pLat, pLon, name)
+                showToast(R.string.toast_assistance_waiting, name)
+            }
+        }
+        rideSocket.onAssistanceAccepted = { assistId, passengerId ->
+            runOnUiThread {
+                mapController.setActivePassenger(mapLibreMap, passengerId)
+            }
+        }
+        rideSocket.onAssistanceCancelled = { assistId ->
+            runOnUiThread {
+                val name = viewModel.waitingAssistances.value.find { it.assistId == assistId }?.name ?: ""
+                viewModel.removeAssistance(assistId)
+                if (name.isNotEmpty()) showToast(R.string.toast_assistance_cancelled, name)
+            }
+        }
+        rideSocket.onAssistanceFinished = { assistId ->
+            runOnUiThread {
+                val name = viewModel.waitingAssistances.value.find { it.assistId == assistId }?.name ?: ""
+                viewModel.removeAssistance(assistId)
+                showToast(R.string.toast_assistance_finished)
+            }
+        }
+        rideSocket.onAssistanceDriverDisconnected = { assistId ->
+            runOnUiThread {
+                viewModel.removeAssistance(assistId)
+                showToast(R.string.toast_assistance_passenger_disconnected)
             }
         }
     }

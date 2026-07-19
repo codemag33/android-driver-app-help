@@ -87,6 +87,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #finishedOverlay .text{font-size:20px;font-weight:700}
 #finishedOverlay .sub{font-size:14px;color:var(--text2)}
 #finishedOverlay .btn{margin-top:24px;padding:14px 40px;background:var(--green);color:#000;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer}
+
+/* ─── Roadside assistance ─────────────────── */
+.assistance-link{margin-top:16px;text-align:center}
+.assistance-link a{color:#F44336;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}
+.assistance-link a:active{opacity:.7}
+
+#assistance .header{font-size:20px;font-weight:700;margin-bottom:6px}
+#assistance .subtext{font-size:14px;color:var(--text2);margin-bottom:20px}
+#assistance label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block}
+#assistance input{width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none}
+#assistance input:focus{border-color:#F44336}
+.type-toggle{display:flex;gap:10px;margin-bottom:20px}
+.type-btn{flex:1;padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:15px;font-weight:600;text-align:center;cursor:pointer;transition:border-color .2s}
+.type-btn.selected{border-color:#F44336;color:#F44336;background:rgba(244,67,54,.1)}
+.type-btn:active{opacity:.85}
+.assistance-submit{width:100%;padding:16px;background:#F44336;color:#fff;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer;margin-top:auto}
+.assistance-submit:disabled{opacity:.4;cursor:default}
+.assistance-submit:active:not(:disabled){opacity:.85}
+.assistance-back{background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;margin-top:12px;padding:8px}
+
+/* ─── Assistance waiting overlay ──────────── */
+#assistanceOverlay{position:absolute;inset:0;background:rgba(18,18,18,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;display:none}
+#assistanceOverlay .icon{font-size:64px}
+#assistanceOverlay .text{font-size:20px;font-weight:700}
+#assistanceOverlay .sub{font-size:14px;color:var(--text2)}
+#assistanceOverlay .info{font-size:13px;color:var(--text2);margin-top:4px}
+#assistanceOverlay .btn{margin-top:24px;padding:14px 40px;background:#F44336;border:none;border-radius:var(--radius);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
@@ -128,6 +155,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
 
     <button class="request-btn" id="requestBtn" disabled>Вызвать машину</button>
+
+    <div class="assistance-link">
+      <a id="assistanceLink">Помощь на дороге</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Screen: Roadside assistance ═══ -->
+<div id="assistance" class="screen hidden">
+  <div class="screen-inner">
+    <div class="header">Помощь на дороге</div>
+    <div class="subtext">Укажите данные автомобиля и тип неисправности</div>
+
+    <label for="carMakeInput">Марка и модель автомобиля</label>
+    <input type="text" id="carMakeInput" placeholder="Например: Toyota Camry">
+
+    <label style="margin-top:16px">Тип неисправности</label>
+    <div class="type-toggle">
+      <div class="type-btn" id="typeElectrical">Электрическая</div>
+      <div class="type-btn" id="typeMechanical">Механическая</div>
+    </div>
+
+    <button class="assistance-submit" id="assistanceSubmit" disabled>Вызвать помощь</button>
+    <button class="assistance-back" id="assistanceBack">← Назад</button>
   </div>
 </div>
 
@@ -167,6 +218,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="sub">Спасибо за поездку!</div>
     <button class="btn" id="newRideBtn">Новая поездка</button>
   </div>
+
+  <div id="assistanceOverlay">
+    <div class="icon">🔧</div>
+    <div class="text" id="assistanceStatusText">Ищем помощника...</div>
+    <div class="sub" id="assistanceCarInfo"></div>
+    <div class="info" id="assistanceTypeInfo"></div>
+    <button class="btn" id="cancelAssistanceBtn" style="background:#F44336;color:#fff">Отменить вызов</button>
+  </div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.js"></script>
@@ -193,6 +252,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   let watchId = null;
   let unreadMessages = 0;
   let isChatOpen = false;
+  let isAssistanceMode = false;
+  let assistanceType = null;
+  let assistanceId = null;
 
   // ─── DOM refs ───────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
@@ -327,6 +389,100 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     driverLon = null;
     showScreen('request');
   };
+
+  // ═══ Roadside assistance ═════════════════════════════════════════
+  $('assistanceLink').onclick = () => {
+    isAssistanceMode = true;
+    assistanceType = null;
+    $('carMakeInput').value = '';
+    $('typeElectrical').classList.remove('selected');
+    $('typeMechanical').classList.remove('selected');
+    $('assistanceSubmit').disabled = true;
+    showScreen('assistance');
+  };
+
+  $('assistanceBack').onclick = () => {
+    isAssistanceMode = false;
+    showScreen('request');
+  };
+
+  $('typeElectrical').onclick = () => {
+    assistanceType = 'electrical';
+    $('typeElectrical').classList.add('selected');
+    $('typeMechanical').classList.remove('selected');
+    updateAssistanceBtn();
+  };
+
+  $('typeMechanical').onclick = () => {
+    assistanceType = 'mechanical';
+    $('typeMechanical').classList.add('selected');
+    $('typeElectrical').classList.remove('selected');
+    updateAssistanceBtn();
+  };
+
+  $('carMakeInput').addEventListener('input', updateAssistanceBtn);
+
+  function updateAssistanceBtn() {
+    $('assistanceSubmit').disabled = !($('carMakeInput').value.trim() && assistanceType);
+  }
+
+  $('assistanceSubmit').onclick = () => {
+    if (!$('carMakeInput').value.trim() || !assistanceType || !myLat || !myLon) return;
+    connectSocketForAssistance();
+    $('assistanceOverlay').style.display = 'flex';
+    $('assistanceCarInfo').textContent = $('carMakeInput').value.trim();
+    $('assistanceTypeInfo').textContent = assistanceType === 'electrical' ? 'Электрическая неисправность' : 'Механическая неисправность';
+  };
+
+  $('cancelAssistanceBtn').onclick = () => {
+    if (assistanceId && socket && socket.connected) {
+      socket.emit('assistance:cancel', { assistanceId });
+    }
+    $('assistanceOverlay').style.display = 'none';
+    isAssistanceMode = false;
+    assistanceId = null;
+  };
+
+  function connectSocketForAssistance() {
+    if (socket && socket.connected) {
+      socket.emit('passenger:register', { name: passengerName });
+      socket.emit('assistance:request', {
+        passengerName,
+        pickup: { lat: myLat, lon: myLon },
+        carMake: $('carMakeInput').value.trim(),
+        breakdownType: assistanceType
+      });
+      return;
+    }
+    socket = io(SERVER_URL, { reconnection: true, reconnectionDelay: 2000 });
+
+    socket.on('connect', () => {
+      socket.emit('passenger:register', { name: passengerName });
+      socket.emit('assistance:request', {
+        passengerName,
+        pickup: { lat: myLat, lon: myLon },
+        carMake: $('carMakeInput').value.trim(),
+        breakdownType: assistanceType
+      });
+    });
+
+    socket.on('assistance:accepted', data => {
+      assistanceId = data.assistanceId;
+      $('assistanceStatusText').textContent = 'Помощь в пути!';
+      $('cancelAssistanceBtn').style.display = 'none';
+      chatFab.style.display = 'flex';
+    });
+
+    socket.on('assistance:cancelled', () => {
+      $('assistanceOverlay').style.display = 'none';
+      assistanceId = null;
+      isAssistanceMode = false;
+    });
+
+    socket.on('disconnect', () => {
+      $('assistanceStatusText').textContent = 'Переподключение...';
+    });
+  }
 
   // ═══ Socket.IO ═════════════════════════════════════════════════════
   function connectSocket() {
@@ -564,6 +720,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     driverLat = null;
     driverLon = null;
     isChatOpen = false;
+    isAssistanceMode = false;
+    assistanceType = null;
+    assistanceId = null;
     unreadMessages = 0;
     $('chatMessages').innerHTML = '';
     $('chatBadge').style.display = 'none';
@@ -571,6 +730,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     $('cancelBtn').style.display = 'block';
     $('chatFab').style.display = 'none';
     $('finishedOverlay').style.display = 'none';
+    $('assistanceOverlay').style.display = 'none';
     if (driverMarker) driverMarker.getElement().style.display = 'none';
     setStatus('waiting', 'Ищем водителя...');
     if (map) { map.remove(); map = null; passengerMarker = null; driverMarker = null; routeLayerAdded = false; }
