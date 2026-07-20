@@ -956,8 +956,15 @@ class MainActivity : AppCompatActivity() {
         binding.btnGo.text = viewModel.getGoButtonText()
         binding.btnGo.isEnabled = viewModel.isGoButtonEnabled()
         val statusText = viewModel.getStatusText()
-        binding.tvOrderStatus.text = if (lastRouteKm.isNotEmpty()) "$statusText  |  $lastRouteKm · $lastRouteMin" else statusText
+        binding.tvOrderStatus.text = statusText
         binding.tvSearchPlaceholder.text = viewModel.getSearchPlaceholder()
+
+        if (lastRouteKm.isNotEmpty()) {
+            binding.routeInfoChip.visibility = View.VISIBLE
+            binding.tvRouteInfo.text = "$lastRouteKm · $lastRouteMin"
+        } else {
+            binding.routeInfoChip.visibility = View.GONE
+        }
 
         val state = viewModel.tripState.value
         val statusColor = when {

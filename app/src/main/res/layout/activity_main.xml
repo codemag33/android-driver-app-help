@@ -369,6 +369,39 @@
                 android:maxLines="2"
                 android:ellipsize="end" />
 
+            <!-- Distance + Time chip -->
+            <LinearLayout
+                android:id="@+id/routeInfoChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_search_pill"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_search_result"
+                    android:contentDescription="@null"
+                    app:tint="@color/uber_green" />
+
+                <TextView
+                    android:id="@+id/tvRouteInfo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:textColor="@color/uber_green"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/tvOrderStatus"
                 android:layout_width="match_parent"
