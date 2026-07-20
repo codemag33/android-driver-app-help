@@ -166,6 +166,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       </div>
     </div>
     <div class="field"><label for="descInput">Описание неисправности</label><textarea id="descInput" rows="3" placeholder="Опишите проблему..."></textarea></div>
+    <div class="location-btn" id="assistLocationBtn" style="margin-bottom:12px;margin-top:4px">
+      <span class="dot" style="background:var(--blue)"></span>
+      <span id="assistPickupText">Нажмите для определения местоположения</span>
+    </div>
+    <div class="addr-group">
+      <span class="icon">📍</span>
+      <label>Где вы находитесь</label>
+      <input type="text" id="assistPickupInput" placeholder="Нажмите для поиска адреса">
+      <div class="addr-suggestions" id="assistPickupSuggestions"></div>
+    </div>
     <div id="mechCount" style="display:none;text-align:center;padding:10px;margin-top:10px;background:var(--card2);border-radius:var(--radius);font-size:14px;color:var(--text2)">🔍 Мастеров в сети: <span id="mechCountVal" style="color:var(--green);font-weight:700">0</span></div>
     <button class="btn btn-red" id="assistSubmit" disabled>Найти мастера</button>
     <div class="back-link" id="assistBack">← Назад</div>
@@ -227,7 +237,7 @@ $('modeTaxi').onclick=()=>{
 };
 $('modeAssist').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');startGeo();loadMechanicCount();
+  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');assistStartGeo();loadMechanicCount();
 };
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
 
@@ -323,7 +333,51 @@ let bType=null;
 $('typeElec').onclick=()=>{bType='electrical';$('typeElec').classList.add('sel');$('typeMech').classList.remove('sel');updAssistBtn()};
 $('typeMech').onclick=()=>{bType='mechanical';$('typeMech').classList.add('sel');$('typeElec').classList.remove('sel');updAssistBtn()};
 ['phoneInput','carMakeInput','descInput'].forEach(id=>$(id).addEventListener('input',updAssistBtn));
-function updAssistBtn(){$('assistSubmit').disabled=!($('phoneInput').value.trim()&&$('carMakeInput').value.trim()&&bType)}
+function updAssistBtn(){$('assistSubmit').disabled=!($('phoneInput').value.trim()&&$('carMakeInput').value.trim()&&bType&&myLat&&myLon&&Math.abs(myLat)>=0.01&&Math.abs(myLon)>=0.01)}
+// ── Assistance auto GPS ──
+function assistStartGeo(){
+  $('assistPickupText').textContent='Определяем местоположение...';
+  $('assistLocationBtn').querySelector('.dot').style.background='var(--blue)';
+  if(!navigator.geolocation){$('assistPickupText').textContent='📍 Введите адрес вручную';return}
+  navigator.geolocation.getCurrentPosition(p=>{
+    myLat=p.coords.latitude;myLon=p.coords.longitude;
+    rGeo(myLat,myLon).then(a=>{
+      $('assistPickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
+      $('assistPickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
+      $('assistLocationBtn').querySelector('.dot').style.background='var(--green)';
+      updAssistBtn();
+    });
+  },()=>{$('assistPickupText').textContent='📍 Нажмите для определения'},{enableHighAccuracy:true,timeout:6000});
+}
+// ── Assistance location button ──
+$('assistLocationBtn').onclick=()=>{
+  if(myLat&&myLon&&Math.abs(myLat)>=0.01)return;
+  if(!navigator.geolocation){$('assistPickupText').textContent='📍 Введите адрес вручную';return}
+  $('assistPickupText').textContent='Определяем...';
+  navigator.geolocation.getCurrentPosition(p=>{
+    myLat=p.coords.latitude;myLon=p.coords.longitude;
+    rGeo(myLat,myLon).then(a=>{
+      $('assistPickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
+      $('assistPickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
+      $('assistLocationBtn').querySelector('.dot').style.background='var(--green)';
+      updAssistBtn();
+    });
+  },()=>{$('assistPickupText').textContent='📍 Нажмите для определения'},{enableHighAccuracy:true,timeout:6000});
+};
+// ── Assistance address search ──
+let stAssistPickup=null;
+$('assistPickupInput').addEventListener('focus',()=>{$('assistPickupInput').select()});
+$('assistPickupInput').addEventListener('input',()=>{
+  clearTimeout(stAssistPickup);const q=$('assistPickupInput').value.trim();
+  if(q.length<3){$('assistPickupSuggestions').classList.remove('show');return}
+  stAssistPickup=setTimeout(()=>searchAssistPickup(q),400);
+});
+async function searchAssistPickup(q){
+  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('assistPickupSuggestions');b.innerHTML='';
+  if(!d.length){b.classList.remove('show');return}
+  d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
+  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('assistPickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('assistPickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');updAssistBtn()};b.appendChild(div)});b.classList.add('show')}catch(e){}
+}
 $('assistSubmit').onclick=()=>{
   if(!$('phoneInput').value.trim()||!$('carMakeInput').value.trim()||!bType)return;
   if(!myLat||!myLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01){
@@ -334,7 +388,7 @@ $('assistSubmit').onclick=()=>{
         connectSocketAssist();showScreen('mapScreen');initMap();
       }else{
         $('assistSubmit').textContent='Найти мастера';
-        $('pickupText').textContent='⚠ Укажите адрес через поиск';
+        $('assistPickupText').textContent='⚠ Укажите адрес через поиск';
       }
     });
     return;
