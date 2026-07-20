@@ -218,11 +218,12 @@ function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classL
 function setStatus(t,txt){$('statusChip').querySelector('.dot').className='dot '+t;$('statusText').textContent=txt}
 
 // ═══ Welcome ════════════════════════════════════════════════════
-if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{myLat=p.coords.latitude;myLon=p.coords.longitude},()=>{},{enableHighAccuracy:true,timeout:10000})}
+let geoAsked=false; // был ли хоть раз запрос GPS
+let geoInterval=null;
 
 $('modeTaxi').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='taxi';showScreen('request');startGeo();
+  name=$('nameInput').value.trim();mode='taxi';showScreen('request');startAutoGeo();
 };
 $('modeAssist').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
@@ -230,16 +231,44 @@ $('modeAssist').onclick=()=>{
 };
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
 
-// ═══ Geolocation ═══════════════════════════════════════════════
-let geoStarted=false;
-function startGeo(){
-  if(geoStarted)return;geoStarted=true;
-  if(!navigator.geolocation)return;
-  navigator.geolocation.watchPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    if(mode==='taxi')rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;updBtn()});
-  },()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});
+// ═══ Auto GPS + кнопка повтора ═══════════════════════════
+function startAutoGeo(){
+  $('pickupText').textContent='Определяем местоположение...';
+  $('locationBtn').querySelector('.dot').style.background='var(--blue)';
+  tryGps();
+  // Через 8с если GPS молчит — меняем текст на кнопку
+  clearTimeout(geoInterval);
+  geoInterval=setTimeout(()=>{
+    if(!myLat||!myLon){
+      $('pickupText').textContent='📍 Нажмите для определения';
+      $('locationBtn').querySelector('.dot').style.background='var(--text2)';
+    }
+  },8000);
 }
+
+function tryGps(){
+  if(!navigator.geolocation){$('pickupText').textContent='📍 Введите адрес вручную';return}
+  geoAsked=true;
+  navigator.geolocation.getCurrentPosition(p=>{
+    myLat=p.coords.latitude;myLon=p.coords.longitude;
+    clearTimeout(geoInterval);
+    rGeo(myLat,myLon).then(a=>{
+      $('pickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
+      $('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
+      $('locationBtn').querySelector('.dot').style.background='var(--green)';
+      updBtn();
+    });
+    startGeo();
+  },()=>{
+    // GPS не ответил — кнопка уже покажет «Нажмите для определения»
+  },{enableHighAccuracy:true,timeout:6000});
+}
+
+// Клик по кнопке — повтор GPS
+$('locationBtn').onclick=()=>{
+  if(myLat&&myLon)return; // уже есть
+  tryGps();
+};
 async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();if(!d.display_name)return'';const parts=d.display_name.split(',');return parts.slice(0,3).join(', ')}catch(e){return''}}
 
 // ═══ Destination search ════════════════════════════════════════
