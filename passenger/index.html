@@ -300,11 +300,16 @@ $('taxiBack').onclick=()=>showScreen('welcome');
 $('requestBtn').onclick=()=>{
   if(!destLat||!destLon)return;
   if(!myLat||!myLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01){
-    // Фоллбэк: IP-геолокация
+    $('requestBtn').textContent='Определяем...';
     fetchIpGeo().then(()=>{
       if(myLat&&myLon&&Math.abs(myLat)>=0.01&&Math.abs(myLon)>=0.01){
         rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`});
+        $('requestBtn').textContent='Вызвать машину';
         connectSocket();showScreen('mapScreen');initMap();
+      }else{
+        $('requestBtn').textContent='Вызвать машину';
+        $('pickupText').textContent='⚠ Укажите адрес через поиск';
+        $('pickupInput').focus();
       }
     });
     return;
@@ -322,9 +327,14 @@ function updAssistBtn(){$('assistSubmit').disabled=!($('phoneInput').value.trim(
 $('assistSubmit').onclick=()=>{
   if(!$('phoneInput').value.trim()||!$('carMakeInput').value.trim()||!bType)return;
   if(!myLat||!myLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01){
+    $('assistSubmit').textContent='Определяем...';
     fetchIpGeo().then(()=>{
       if(myLat&&myLon&&Math.abs(myLat)>=0.01&&Math.abs(myLon)>=0.01){
+        $('assistSubmit').textContent='Найти мастера';
         connectSocketAssist();showScreen('mapScreen');initMap();
+      }else{
+        $('assistSubmit').textContent='Найти мастера';
+        $('pickupText').textContent='⚠ Укажите адрес через поиск';
       }
     });
     return;
