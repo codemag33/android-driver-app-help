@@ -222,8 +222,9 @@ function setStatus(t,txt){$('statusChip').querySelector('.dot').className='dot '
 $('modeTaxi').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
   name=$('nameInput').value.trim();mode='taxi';showScreen('request');
-  // Сразу IP-геолокация как быстрый старт
-  if(!myLat||!myLon)fetchIpGeo().then(()=>{geocodePickup()});
+  // Быстрый IP-старт + GPS параллельно
+  fetchIpGeo().then(()=>{geocodePickup()}).catch(()=>{geocodePickup()});
+  tryGetGps();
 };
 $('modeAssist').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
@@ -231,23 +232,32 @@ $('modeAssist').onclick=()=>{
 };
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
 
-// ═══ Location button — tap to request GPS ════════════════════
-$('locationBtn').onclick=()=>{
-  if(!navigator.geolocation){fetchIpGeo().then(()=>{geocodePickup()});return}
-  $('pickupText').textContent='Определяем местоположение...';
+// ═══ GPS — try silently in background ════════════════════════
+function tryGetGps(){
+  if(!navigator.geolocation)return;
   navigator.geolocation.getCurrentPosition(p=>{
     myLat=p.coords.latitude;myLon=p.coords.longitude;
-    geocodePickup();
-    // Продолжаем watch для обновлений
-    startGeo();
+    geocodePickup();startGeo();
+  },()=>{},{enableHighAccuracy:true,timeout:12000});
+}
+
+// ═══ Location button — tap to request GPS ════════════════════
+$('locationBtn').onclick=()=>{
+  $('pickupText').textContent='Определяем местоположение...';
+  if(!navigator.geolocation){fetchIpGeo().then(()=>{geocodePickup()}).catch(()=>{geocodePickup()});return}
+  navigator.geolocation.getCurrentPosition(p=>{
+    myLat=p.coords.latitude;myLon=p.coords.longitude;
+    geocodePickup();startGeo();
   },()=>{
-    // GPS не сработал — пробуем IP
-    fetchIpGeo().then(()=>{geocodePickup()});
+    fetchIpGeo().then(()=>{geocodePickup()}).catch(()=>{geocodePickup()});
   },{enableHighAccuracy:true,timeout:20000});
 };
 
 async function fetchIpGeo(){
-  try{const r=await fetch('https://ipapi.co/json/');const d=await r.json();
+  try{const r=await Promise.race([
+    fetch('https://ipapi.co/json/'),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
+  ]);const d=await r.json();
     if(d.latitude&&d.longitude){myLat=d.latitude;myLon=d.longitude}
   }catch(e){}
 }
