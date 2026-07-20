@@ -239,7 +239,7 @@ function startGeo(){
     if(mode==='taxi')rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;updBtn()});
   },()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});
 }
-async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();return d.display_name||''}catch(e){return''}}
+async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();if(!d.display_name)return'';const parts=d.display_name.split(',');return parts.slice(0,3).join(', ')}catch(e){return''}}
 
 // ═══ Destination search ════════════════════════════════════════
 let st=null;
@@ -270,7 +270,7 @@ function initMap(){
   map=new maplibregl.Map({container:'mapContainer',style:MAP_STYLE,center:[myLon||37.6,myLat||55.7],zoom:15,attributionControl:false});
   map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
 
-  map.on('load',()=>{
+    map.on('load',()=>{
     mapReady=true;
 
     pMarker=new maplibregl.Marker({element:dotEl('#2979FF')}).setLngLat([myLon||37.6,myLat||55.7]).addTo(map);
@@ -285,9 +285,18 @@ function initMap(){
     driverRouteSrc=map.getSource('driver-route');
 
     if(mode==='taxi'&&myLat&&myLon&&destLat&&destLon){
-      addPointLabel('A',myLon,myLat,'📍 Посадка',false);
-      addPointLabel('B',destLon,destLat,'🏁 Назначение',true);
+      rGeo(myLat,myLon).then(addr=>{
+        addPointLabel('A',myLon,myLat,'📍 '+(addr||'Посадка'),false);
+      });
+      rGeo(destLat,destLon).then(addr=>{
+        addPointLabel('B',destLon,destLat,'🏁 '+(addr||'Назначение'),true);
+      });
       drawRideRoute(myLat,myLon,destLat,destLon);
+    }
+    if(mode==='assist'&&myLat&&myLon){
+      rGeo(myLat,myLon).then(addr=>{
+        addPointLabel('A',myLon,myLat,'🔧 '+(addr||'Местоположение'),false);
+      });
     }
   });
 
@@ -386,7 +395,12 @@ function connectSocket(){
     socket.emit('ride:request',{passengerName:name,pickup:{lat:myLat,lon:myLon},destination:{lat:destLat,lon:destLon}});
     $('chatTitle').textContent='Чат с водителем';
   });
-  socket.on('ride:accepted',d=>{rideId=d.rideId;setStatus('driving','Водитель едет к вам');$('cancelBtn').style.display='none';$('chatFab').style.display='flex'});
+  socket.on('ride:accepted',d=>{rideId=d.rideId;setStatus('driving','Водитель едет к вам');$('cancelBtn').style.display='none';$('chatFab').style.display='flex';
+    const ic=$('infoCard');ic.style.display='block';
+    Promise.all([rGeo(myLat,myLon),rGeo(destLat,destLon)]).then(([pAddr,dAddr])=>{
+      ic.innerHTML='<div class="row"><span class="label">Откуда</span><span class="value">'+esc(pAddr||`${myLat.toFixed(5)}, ${myLon.toFixed(5)}`)+'</span></div><div class="row"><span class="label">Куда</span><span class="value">'+esc(dAddr||`${destLat.toFixed(5)}, ${destLon.toFixed(5)}`)+'</span></div>';
+    });
+  });
   socket.on('ride:driver_location',d=>{driverLat=d.lat;driverLon=d.lon;updDriver()});
   socket.on('drivers:locations',d=>{
     if(!map||!mapReady||!d||!d.drivers)return;
