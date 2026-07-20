@@ -36,6 +36,7 @@ import android.annotation.SuppressLint
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -50,6 +51,7 @@ import com.driver.app.databinding.ActivityMainBinding
 import com.driver.app.ui.MapController
 import com.driver.app.ui.RideViewModel
 import com.driver.app.widget.SlideToAcceptView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -95,6 +97,7 @@ class MainActivity : AppCompatActivity() {
     private val mapController by lazy { MapController(this) }
     private var lastRouteKm = ""
     private var lastRouteMin = ""
+    private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
 
     // ─── Handlers ────────────────────────────────────────────────────────────
     private val suggestHandler = Handler(Looper.getMainLooper())
@@ -150,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setupBottomSheet()
         binding.mapView.onCreate(savedInstanceState)
         initMap()
         setupButtons()
@@ -166,6 +170,17 @@ class MainActivity : AppCompatActivity() {
         setupRideSocket()
         setupOnlineStatus()
         handleIntent(intent)
+    }
+
+    private fun setupBottomSheet() {
+        bottomSheetBehavior = BottomSheetBehavior.from(binding.bottomSheet)
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        bottomSheetBehavior.isHideable = true
+        bottomSheetBehavior.peekHeight = 0
+        bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {}
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {}
+        })
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -226,6 +241,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.waitingPassengers.collect { passengers ->
                         passengerAdapter?.submitList(passengers)
                         binding.rvPassengers.visibility = if (passengers.isNotEmpty()) View.VISIBLE else View.GONE
+                        updateWaitingContainerVisibility()
                     }
                 }
 
@@ -234,6 +250,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.waitingAssistances.collect { assistances ->
                         assistanceAdapter?.submitList(assistances)
                         binding.rvAssistances.visibility = if (assistances.isNotEmpty()) View.VISIBLE else View.GONE
+                        updateWaitingContainerVisibility()
                     }
                 }
             }
@@ -430,6 +447,8 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 setPoint('A', pickup, pickupLabel)
                 binding.routeInputsContainer.visibility = View.GONE
+                binding.orderInfoGroup.visibility = View.VISIBLE
+                showBottomSheet()
                 mapController.fitBounds(mapLibreMap, listOf(pickup))
             }
         }
@@ -711,6 +730,7 @@ class MainActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<PassengerAdapter.VH>() {
 
         private val items = mutableListOf<RideViewModel.WaitingPassenger>()
+        private val addressCache = mutableMapOf<String, Pair<String, String>>()
 
         fun submitList(newItems: List<RideViewModel.WaitingPassenger>) {
             items.clear()
@@ -736,8 +756,32 @@ class MainActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: VH, position: Int) {
             val p = items[position]
             holder.name.text = p.name
-            holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", p.pickup.lat, p.pickup.lon)
-            holder.dest.text = String.format(Locale.US, "%.5f, %.5f", p.destination.lat, p.destination.lon)
+
+            val cached = addressCache[p.passengerId]
+            if (cached != null) {
+                holder.pickup.text = cached.first
+                holder.dest.text = cached.second
+            } else {
+                holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", p.pickup.lat, p.pickup.lon)
+                holder.dest.text = String.format(Locale.US, "%.5f, %.5f", p.destination.lat, p.destination.lon)
+                lifecycleScope.launch {
+                    val pickupAddr = viewModel.geocodeRepo.reverseGeocode(
+                        p.pickup.lat, p.pickup.lon,
+                        String.format(Locale.US, "%.5f, %.5f", p.pickup.lat, p.pickup.lon)
+                    )
+                    val destAddr = viewModel.geocodeRepo.reverseGeocode(
+                        p.destination.lat, p.destination.lon,
+                        String.format(Locale.US, "%.5f, %.5f", p.destination.lat, p.destination.lon)
+                    )
+                    addressCache[p.passengerId] = pickupAddr to destAddr
+                    runOnUiThread {
+                        if (binding.rvPassengers.isAttachedToWindow) {
+                            val idx = items.indexOfFirst { it.passengerId == p.passengerId }
+                            if (idx >= 0) notifyItemChanged(idx)
+                        }
+                    }
+                }
+            }
 
             if (p.isActive) {
                 holder.status.setText(R.string.passenger_active)
@@ -766,6 +810,7 @@ class MainActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<AssistanceAdapter.VH>() {
 
         private val items = mutableListOf<RideViewModel.WaitingAssistance>()
+        private val addressCache = mutableMapOf<String, String>()
 
         fun submitList(newItems: List<RideViewModel.WaitingAssistance>) {
             items.clear()
@@ -799,7 +844,26 @@ class MainActivity : AppCompatActivity() {
             holder.type.text = typeText
             if (a.phone.isNotEmpty()) { holder.phone.text = "📞 " + a.phone; holder.phone.visibility = View.VISIBLE } else holder.phone.visibility = View.GONE
             if (a.description.isNotEmpty()) { holder.desc.text = a.description; holder.desc.visibility = View.VISIBLE } else holder.desc.visibility = View.GONE
-            holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", a.pickup.lat, a.pickup.lon)
+
+            val cachedAddr = addressCache[a.assistId]
+            if (cachedAddr != null) {
+                holder.pickup.text = cachedAddr
+            } else {
+                holder.pickup.text = String.format(Locale.US, "%.5f, %.5f", a.pickup.lat, a.pickup.lon)
+                lifecycleScope.launch {
+                    val addr = viewModel.geocodeRepo.reverseGeocode(
+                        a.pickup.lat, a.pickup.lon,
+                        String.format(Locale.US, "%.5f, %.5f", a.pickup.lat, a.pickup.lon)
+                    )
+                    addressCache[a.assistId] = addr
+                    runOnUiThread {
+                        if (binding.rvAssistances.isAttachedToWindow) {
+                            val idx = items.indexOfFirst { it.assistId == a.assistId }
+                            if (idx >= 0) notifyItemChanged(idx)
+                        }
+                    }
+                }
+            }
 
             if (a.isActive) {
                 holder.status.setText(R.string.passenger_active)
@@ -960,26 +1024,25 @@ class MainActivity : AppCompatActivity() {
         super.onPictureInPictureModeChanged(isInPipMode, newConfig)
         if (isInPipMode) {
             binding.mapView.visibility = View.INVISIBLE
-            binding.searchBarContainer.visibility = View.INVISIBLE
-            binding.statusRow.visibility = View.INVISIBLE
-            binding.rvPassengers.visibility = View.GONE
-            binding.rvAssistances.visibility = View.GONE
-            binding.routeInputsContainer.visibility = View.GONE
+            binding.topBar.visibility = View.INVISIBLE
+            binding.waitingListsContainer.visibility = View.GONE
+            binding.bottomSheet.visibility = View.GONE
             binding.btnConfirmPin.visibility = View.GONE
             binding.fabMyLocation.visibility = View.INVISIBLE
-            binding.fullUiGroup.visibility = View.GONE
             binding.pipStatusText.visibility = View.VISIBLE
             binding.pipStatusText.text = viewModel.getPipStatusText()
         } else {
             binding.mapView.visibility = View.VISIBLE
-            binding.searchBarContainer.visibility = View.VISIBLE
-            binding.statusRow.visibility = View.VISIBLE
-            if (viewModel.waitingPassengers.value.isNotEmpty()) binding.rvPassengers.visibility = View.VISIBLE
-            if (viewModel.waitingAssistances.value.isNotEmpty()) binding.rvAssistances.visibility = View.VISIBLE
+            binding.topBar.visibility = View.VISIBLE
+            updateWaitingContainerVisibility()
             val state = viewModel.tripState.value
-            if (state.pointA != null || state.pointB != null) binding.routeInputsContainer.visibility = View.VISIBLE
+            if (state.pointA != null || state.pointB != null) {
+                binding.routeInputsContainer.visibility = View.VISIBLE
+                binding.orderInfoGroup.visibility = View.VISIBLE
+                showBottomSheet()
+            }
+            binding.bottomSheet.visibility = View.VISIBLE
             binding.fabMyLocation.visibility = View.VISIBLE
-            binding.fullUiGroup.visibility = View.VISIBLE
             binding.pipStatusText.visibility = View.GONE
         }
     }
@@ -1018,10 +1081,11 @@ class MainActivity : AppCompatActivity() {
         binding.tvDestAddress.setText(R.string.dest_address_placeholder)
         binding.btnConfirmPin.visibility = View.GONE
         binding.routeInputsContainer.visibility = View.GONE
-        binding.rvPassengers.visibility = View.GONE
-        binding.rvAssistances.visibility = View.GONE
+        binding.orderInfoGroup.visibility = View.GONE
+        binding.waitingListsContainer.visibility = View.GONE
         binding.destPin.visibility = View.GONE
         chatLogView = null
+        hideBottomSheet()
 
         updateGoButtonState()
         showToast(R.string.toast_order_finished)
@@ -1394,8 +1458,38 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.routeInputsContainer.visibility = View.VISIBLE
+        binding.orderInfoGroup.visibility = View.VISIBLE
         mapController.updatePointMarker(mapLibreMap, target, latLng, label)
+        showBottomSheet()
         updateGoButtonState()
+    }
+
+    private fun showBottomSheet() {
+        if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
+    }
+
+    private fun hideBottomSheet() {
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+    }
+
+    private fun updateBottomSheetVisibility() {
+        val hasWaiting = viewModel.waitingPassengers.value.isNotEmpty() || viewModel.waitingAssistances.value.isNotEmpty()
+        val hasTrip = viewModel.tripState.value.phase != RideViewModel.TripPhase.SELECTING
+        val hasPoints = viewModel.tripState.value.pointA != null || viewModel.tripState.value.pointB != null
+        if (hasWaiting || hasTrip || hasPoints) {
+            showBottomSheet()
+        } else {
+            hideBottomSheet()
+        }
+    }
+
+    private fun updateWaitingContainerVisibility() {
+        val hasPassengers = viewModel.waitingPassengers.value.isNotEmpty()
+        val hasAssistances = viewModel.waitingAssistances.value.isNotEmpty()
+        binding.waitingListsContainer.visibility = if (hasPassengers || hasAssistances) View.VISIBLE else View.GONE
+        updateBottomSheetVisibility()
     }
 
     /** Звук + вибро при входящем заказе/вызове */

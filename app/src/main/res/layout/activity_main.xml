@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -9,15 +9,11 @@
     android:background="@color/uber_black"
     tools:context=".MainActivity">
 
-    <!-- ═══ Map ═══ -->
+    <!-- ═══ Map (fills everything) ═══ -->
     <org.maplibre.android.maps.MapView
         android:id="@+id/mapView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         app:maplibre_cameraTargetLat="55.751244"
         app:maplibre_cameraTargetLng="37.618423"
         app:maplibre_cameraZoom="14" />
@@ -30,88 +26,44 @@
         android:src="@drawable/ic_dest_pin"
         android:contentDescription="@string/dest_pin_description"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_gravity="center_horizontal|center"
         android:translationY="-24dp" />
 
-    <!-- ═══ Top search bar — like Uber "Куда?" ═══ -->
+    <!-- ═══ Top floating bar (compact pill) ═══ -->
     <LinearLayout
-        android:id="@+id/searchBarContainer"
-        android:layout_width="0dp"
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="top"
         android:layout_marginTop="48dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:id="@+id/searchBar"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_uber_search_bar"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:elevation="6dp">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_search"
-                android:contentDescription="@null"
-                app:tint="@color/uber_text_secondary" />
-
-            <TextView
-                android:id="@+id/tvSearchPlaceholder"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="12dp"
-                android:text="@string/search_hint"
-                android:textColor="@color/uber_text_hint"
-                android:textSize="16sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- ═══ Online status + Settings row ═══ -->
-    <LinearLayout
-        android:id="@+id/statusRow"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_top_bar"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/searchBarContainer"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:elevation="8dp">
 
-        <!-- Online/offline chip -->
+        <!-- Online chip -->
         <LinearLayout
             android:id="@+id/chipOnline"
             android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:background="@drawable/bg_status_chip"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_online_chip"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="10dp"
-            android:paddingEnd="14dp"
+            android:paddingEnd="12dp"
             android:clickable="true"
-            android:focusable="true"
-            android:elevation="4dp">
+            android:focusable="true">
 
             <View
                 android:id="@+id/onlineDot"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
                 android:background="@drawable/bg_offline_dot" />
 
             <TextView
@@ -121,14 +73,45 @@
                 android:layout_marginStart="6dp"
                 android:text="@string/status_offline"
                 android:textColor="@color/uber_text_secondary"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <View
+        <!-- Search bar (fills remaining space) -->
+        <LinearLayout
+            android:id="@+id/searchBar"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/bg_search_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_search"
+                android:contentDescription="@null"
+                app:tint="@color/uber_text_hint" />
+
+            <TextView
+                android:id="@+id/tvSearchPlaceholder"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="@string/search_hint"
+                android:textColor="@color/uber_text_hint"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
 
         <!-- Settings button -->
         <ImageButton
@@ -139,242 +122,237 @@
             android:contentDescription="@string/settings_title"
             android:src="@drawable/ic_settings"
             android:scaleType="centerInside"
+            android:padding="6dp"
             app:tint="@color/uber_text_secondary" />
     </LinearLayout>
 
-    <!-- ═══ GPS button — bottom right ═══ -->
+    <!-- ═══ GPS button — bottom right, above bottom sheet ═══ -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabMyLocation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:src="@drawable/ic_locate_me"
         app:backgroundTint="@color/uber_card"
         app:tint="@color/uber_text_primary"
         app:fabSize="normal"
-        app:elevation="6dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/fullUiGroup" />
+        app:elevation="6dp" />
 
-    <!-- ═══ Waiting passengers list ═══ -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvPassengers"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        android:visibility="gone"
-        android:clipToPadding="false"
-        android:maxHeight="260dp"
-        app:layout_constraintTop_toBottomOf="@id/statusRow"
-        app:layout_constraintBottom_toTopOf="@id/fullUiGroup"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:listitem="@layout/item_passenger"
-        tools:visibility="visible" />
-
-    <!-- ═══ Waiting assistance list ═══ -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvAssistances"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        android:visibility="gone"
-        android:clipToPadding="false"
-        android:maxHeight="260dp"
-        app:layout_constraintTop_toBottomOf="@id/rvPassengers"
-        app:layout_constraintBottom_toTopOf="@id/fullUiGroup"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:listitem="@layout/item_assistance"
-        tools:visibility="visible" />
-
-    <!-- ═══ Confirm pin button (hidden by default) ═══ -->
+    <!-- ═══ Confirm pin button ═══ -->
     <Button
         android:id="@+id/btnConfirmPin"
         style="@style/Widget.MaterialComponents.Button"
         android:layout_width="wrap_content"
         android:layout_height="44dp"
-        android:layout_marginBottom="8dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
         android:visibility="gone"
         android:text="@string/confirm_pin"
         android:textSize="13sp"
         app:backgroundTint="@color/uber_green"
         android:textColor="@color/uber_black"
-        app:layout_constraintBottom_toTopOf="@id/fabMyLocation"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible" />
 
-    <!-- ═══ Route inputs (hidden by default, shown after search) ═══ -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/routeInputsContainer"
-        android:layout_width="0dp"
+    <!-- ═══ Waiting lists (overlays map, below top bar) ═══ -->
+    <LinearLayout
+        android:id="@+id/waitingListsContainer"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="8dp"
-        android:visibility="gone"
-        app:cardBackgroundColor="@color/uber_card"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="6dp"
-        app:layout_constraintTop_toBottomOf="@id/searchBarContainer"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_gravity="top"
+        android:layout_marginTop="108dp"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <LinearLayout
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvPassengers"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="14dp">
+            android:clipToPadding="false"
+            android:maxHeight="260dp"
+            android:visibility="gone"
+            tools:listitem="@layout/item_passenger"
+            tools:visibility="visible" />
 
-            <!-- Point A -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvAssistances"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:clipToPadding="false"
+            android:maxHeight="260dp"
+            android:visibility="gone"
+            tools:listitem="@layout/item_assistance"
+            tools:visibility="visible" />
+    </LinearLayout>
 
-                <View
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:background="@drawable/bg_dot_pickup" />
-
-                <EditText
-                    android:id="@+id/etPointA"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="12dp"
-                    android:background="@null"
-                    android:clickable="true"
-                    android:cursorVisible="false"
-                    android:focusable="false"
-                    android:focusableInTouchMode="false"
-                    android:hint="@string/hint_point_a"
-                    android:inputType="none"
-                    android:maxLines="1"
-                    android:textColor="@color/uber_text_primary"
-                    android:textColorHint="@color/uber_text_hint"
-                    android:textSize="15sp" />
-
-                <ImageButton
-                    android:id="@+id/btnSearchA"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/search_point_a"
-                    android:src="@drawable/ic_search"
-                    app:tint="@color/uber_text_secondary" />
-
-                <ImageButton
-                    android:id="@+id/btnPinA"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/pin_point_a"
-                    android:src="@drawable/ic_dest_pin"
-                    app:tint="@color/uber_green" />
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="20dp"
-                android:background="@color/uber_divider" />
-
-            <!-- Point B -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:background="@drawable/bg_dot_dest" />
-
-                <EditText
-                    android:id="@+id/etPointB"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="12dp"
-                    android:background="@null"
-                    android:clickable="true"
-                    android:cursorVisible="false"
-                    android:focusable="false"
-                    android:focusableInTouchMode="false"
-                    android:hint="@string/hint_point_b"
-                    android:inputType="none"
-                    android:maxLines="1"
-                    android:textColor="@color/uber_text_primary"
-                    android:textColorHint="@color/uber_text_hint"
-                    android:textSize="15sp" />
-
-                <ImageButton
-                    android:id="@+id/btnSearchB"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/search_point_b"
-                    android:src="@drawable/ic_search"
-                    app:tint="@color/uber_text_secondary" />
-
-                <ImageButton
-                    android:id="@+id/btnPinB"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/pin_point_b"
-                    android:src="@drawable/ic_dest_pin"
-                    app:tint="@color/uber_red" />
-            </LinearLayout>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- ═══ Bottom card — Uber-style ═══ -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/fullUiGroup"
-        android:layout_width="0dp"
+    <!-- ═══ Bottom sheet — order panel ═══ -->
+    <LinearLayout
+        android:id="@+id/bottomSheet"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardBackgroundColor="@color/uber_dark"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="12dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="@drawable/bg_bottom_sheet"
+        app:behavior_hideable="true"
+        app:behavior_peekHeight="0dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 
+        <!-- Handle -->
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_drag_handle" />
+
+        <!-- Route inputs (hidden by default) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/routeInputsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/uber_card"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <!-- Point A -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_pickup" />
+
+                    <EditText
+                        android:id="@+id/etPointA"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:background="@null"
+                        android:clickable="true"
+                        android:cursorVisible="false"
+                        android:focusable="false"
+                        android:focusableInTouchMode="false"
+                        android:hint="@string/hint_point_a"
+                        android:inputType="none"
+                        android:maxLines="1"
+                        android:textColor="@color/uber_text_primary"
+                        android:textColorHint="@color/uber_text_hint"
+                        android:textSize="14sp" />
+
+                    <ImageButton
+                        android:id="@+id/btnSearchA"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/search_point_a"
+                        android:src="@drawable/ic_search"
+                        app:tint="@color/uber_text_secondary" />
+
+                    <ImageButton
+                        android:id="@+id/btnPinA"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/pin_point_a"
+                        android:src="@drawable/ic_dest_pin"
+                        app:tint="@color/uber_green" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/uber_divider" />
+
+                <!-- Point B -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_dest" />
+
+                    <EditText
+                        android:id="@+id/etPointB"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:background="@null"
+                        android:clickable="true"
+                        android:cursorVisible="false"
+                        android:focusable="false"
+                        android:focusableInTouchMode="false"
+                        android:hint="@string/hint_point_b"
+                        android:inputType="none"
+                        android:maxLines="1"
+                        android:textColor="@color/uber_text_primary"
+                        android:textColorHint="@color/uber_text_hint"
+                        android:textSize="14sp" />
+
+                    <ImageButton
+                        android:id="@+id/btnSearchB"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/search_point_b"
+                        android:src="@drawable/ic_search"
+                        app:tint="@color/uber_text_secondary" />
+
+                    <ImageButton
+                        android:id="@+id/btnPinB"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/pin_point_b"
+                        android:src="@drawable/ic_dest_pin"
+                        app:tint="@color/uber_red" />
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Order info -->
         <LinearLayout
+            android:id="@+id/orderInfoGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="20dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="16dp"
+            android:visibility="gone">
 
-            <!-- Handle -->
-            <View
-                android:layout_width="40dp"
-                android:layout_height="4dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="14dp"
-                android:background="@drawable/bg_drag_handle" />
-
-            <!-- Destination + status row -->
             <TextView
                 android:id="@+id/tvDestAddress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/dest_address_placeholder"
                 android:textColor="@color/uber_text_primary"
-                android:textSize="17sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:maxLines="2"
                 android:ellipsize="end" />
@@ -383,44 +361,43 @@
                 android:id="@+id/tvOrderStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:text=""
                 android:textColor="@color/uber_text_secondary"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
 
-            <!-- Buttons -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
                     android:id="@+id/btnFinishOrder"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
                     android:text="@string/btn_cancel"
                     android:textColor="@color/uber_red"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     app:strokeColor="@color/uber_red" />
 
                 <Button
                     android:id="@+id/btnGo"
                     style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="44dp"
                     android:layout_weight="2"
                     android:backgroundTint="@color/uber_green"
                     android:text="@string/btn_go"
                     android:textColor="@color/uber_black"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </LinearLayout>
 
     <!-- ═══ PiP text ═══ -->
     <TextView
@@ -434,10 +411,7 @@
         android:textStyle="bold"
         android:gravity="center"
         android:padding="8dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_gravity="center"
         tools:visibility="visible" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
