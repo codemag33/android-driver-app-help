@@ -133,13 +133,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div style="font-size:20px;font-weight:700;margin-bottom:16px">Куда ехать?</div>
     <div class="location-btn" id="locationBtn">
       <span class="dot"></span>
-      <span id="pickupText">Нажмите, чтобы определить местоположение</span>
+      <span id="pickupText">Определяем местоположение...</span>
     </div>
     <div class="addr-group">
       <span class="icon">📍</span>
       <label>Откуда</label>
-      <input type="text" id="pickupInput" placeholder="Нажмите на адрес или введите вручную">
-      <div class="addr-suggestions" id="pickupSuggestions"></div>
+      <input type="text" id="pickupInput" placeholder="Текущее местоположение" readonly>
     </div>
     <div class="addr-group">
       <span class="icon">🏁</span>
@@ -218,13 +217,11 @@ function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classL
 function setStatus(t,txt){$('statusChip').querySelector('.dot').className='dot '+t;$('statusText').textContent=txt}
 
 // ═══ Welcome ════════════════════════════════════════════════════
+if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{myLat=p.coords.latitude;myLon=p.coords.longitude},()=>{},{enableHighAccuracy:true,timeout:10000})}
 
 $('modeTaxi').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='taxi';showScreen('request');
-  // Быстрый IP-старт + GPS параллельно
-  fetchIpGeo().then(()=>{geocodePickup()}).catch(()=>{geocodePickup()});
-  tryGetGps();
+  name=$('nameInput').value.trim();mode='taxi';showScreen('request');startGeo();
 };
 $('modeAssist').onclick=()=>{
   if(!$('nameInput').value.trim()){$('nameInput').focus();return}
@@ -232,87 +229,25 @@ $('modeAssist').onclick=()=>{
 };
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
 
-// ═══ GPS — try silently in background ════════════════════════
-function tryGetGps(){
-  if(!navigator.geolocation)return;
-  navigator.geolocation.getCurrentPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    geocodePickup();startGeo();
-  },()=>{},{enableHighAccuracy:true,timeout:12000});
-}
-
-// ═══ Location button — tap to request GPS ════════════════════
-$('locationBtn').onclick=()=>{
-  $('pickupText').textContent='Определяем местоположение...';
-  if(!navigator.geolocation){fetchIpGeo().then(()=>{geocodePickup()}).catch(()=>{geocodePickup()});return}
-  navigator.geolocation.getCurrentPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    geocodePickup();startGeo();
-  },()=>{
-    fetchIpGeo().then(()=>{geocodePickup()}).catch(()=>{geocodePickup()});
-  },{enableHighAccuracy:true,timeout:20000});
-};
-
-async function fetchIpGeo(){
-  try{const r=await Promise.race([
-    fetch('https://ipapi.co/json/'),
-    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
-  ]);const d=await r.json();
-    if(d.latitude&&d.longitude){myLat=d.latitude;myLon=d.longitude}
-  }catch(e){}
-}
-
-// ═══ Geolocation watch ═══════════════════════════════════════
+// ═══ Geolocation ═══════════════════════════════════════════════
 let geoStarted=false;
 function startGeo(){
   if(geoStarted)return;geoStarted=true;
   if(!navigator.geolocation)return;
   navigator.geolocation.watchPosition(p=>{
     myLat=p.coords.latitude;myLon=p.coords.longitude;
-  },()=>{},{enableHighAccuracy:false,timeout:15000,maximumAge:5000});
+    if(mode==='taxi')rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;updBtn()});
+  },()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});
 }
 async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();if(!d.display_name)return'';const parts=d.display_name.split(',');return parts.slice(0,3).join(', ')}catch(e){return''}}
 
-let pickupGeocoded=false;
-let lastGeoLat=0,lastGeoLon=0;
-function geocodePickup(){
-  if(!myLat||!myLon)return;
-  if(pickupGeocoded&&Math.abs(myLat-lastGeoLat)<0.0005&&Math.abs(myLon-lastGeoLon)<0.0005)return;
-  lastGeoLat=myLat;lastGeoLon=myLon;
-  pickupGeocoded=true;
-  rGeo(myLat,myLon).then(a=>{
-    $('pickupInput').value=a||`${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
-    $('pickupText').textContent=a||`${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
-    updBtn();
-  }).catch(()=>{
-    $('pickupInput').value=`${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
-    $('pickupText').textContent=`${myLat.toFixed(5)}, ${myLon.toFixed(5)}`;
-    updBtn();
-  });
-}
-
-// ═══ Pickup address search (manual input) ════════════════════
-let stPickup=null;
-$('pickupInput').removeAttribute('readonly');
-$('pickupInput').addEventListener('input',()=>{
-  clearTimeout(stPickup);
-  const q=$('pickupInput').value.trim();
-  if(q.length<3){$('pickupSuggestions').classList.remove('show');return}
-  stPickup=setTimeout(()=>searchPickupAddr(q),400);
-});
-async function searchPickupAddr(q){
-  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('pickupSuggestions');b.innerHTML='';if(!d.length){b.classList.remove('show');return}
-  d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('pickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('pickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');pickupGeocoded=true;lastGeoLat=myLat;lastGeoLon=myLon;updBtn()};b.appendChild(div)});b.classList.add('show')}catch(e){}
-}
-
-// ═══ Destination search ═══════════════════════════════════════
+// ═══ Destination search ════════════════════════════════════════
 let st=null;
 $('destInput').addEventListener('input',()=>{clearTimeout(st);const q=$('destInput').value.trim();if(q.length<3){$('destSuggestions').classList.remove('show');return}st=setTimeout(()=>searchAddr(q),400)});
 async function searchAddr(q){
   try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('destSuggestions');b.innerHTML='';if(!d.length){b.classList.remove('show');return}
   d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{destLat=parseFloat(i.lat);destLon=parseFloat(i.lon);$('destInput').value=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');updBtn()};b.appendChild(div)};b.classList.add('show')}catch(e){}
+  div.onclick=()=>{destLat=parseFloat(i.lat);destLon=parseFloat(i.lon);$('destInput').value=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');updBtn()};b.appendChild(div)});b.classList.add('show')}catch(e){}
 }
 function updBtn(){$('requestBtn').disabled=!(myLat&&myLon&&destLat&&destLon)}
 
