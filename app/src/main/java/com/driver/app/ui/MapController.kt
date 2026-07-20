@@ -74,6 +74,26 @@ class MapController(private val context: Context) {
     var pointB: LatLng? = null
         private set
 
+    /** Подогнать камеру так, чтобы были видны все переданные точки */
+    fun fitBounds(map: MapLibreMap?, points: List<LatLng>, paddingPx: Int = 120) {
+        if (points.isEmpty()) return
+        val mapInstance = map ?: return
+        if (points.size == 1) {
+            mapInstance.easeCamera(CameraUpdateFactory.newLatLngZoom(points[0], 15.5))
+            return
+        }
+        val builder = org.maplibre.android.camera.CameraPosition.Builder()
+        val latitudes = points.map { it.latitude }
+        val longitudes = points.map { it.longitude }
+        val minLat = latitudes.min(); val maxLat = latitudes.max()
+        val minLon = longitudes.min(); val maxLon = longitudes.max()
+        val bounds = org.maplibre.android.geometry.LatLngBounds.Builder()
+            .include(LatLng(minLat, minLon))
+            .include(LatLng(maxLat, maxLon))
+            .build()
+        mapInstance.easeCamera(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+    }
+
     /** Текущее состояние пассажиров на карте */
     private val passengerFeatures = mutableMapOf<String, Feature>()
 

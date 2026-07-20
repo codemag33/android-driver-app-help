@@ -4,13 +4,19 @@ import android.Manifest
 import android.app.Dialog
 import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -43,6 +49,7 @@ import com.driver.app.PipActionReceiver.Companion.EXTRA_FINISH_ORDER
 import com.driver.app.databinding.ActivityMainBinding
 import com.driver.app.ui.MapController
 import com.driver.app.ui.RideViewModel
+import com.driver.app.widget.SlideToAcceptView
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -382,12 +389,24 @@ class MainActivity : AppCompatActivity() {
         val accepted = viewModel.acceptPassenger(passenger.passengerId) ?: return
         mapController.setActivePassenger(mapLibreMap, passenger.passengerId)
 
-        // Set route points
         val pickup = LatLng(accepted.pickup.lat, accepted.pickup.lon)
         val dest = LatLng(accepted.destination.lat, accepted.destination.lon)
-        setPoint('A', pickup, getString(R.string.pickup_label_format, accepted.name))
-        setPoint('B', dest, getString(R.string.dest_label_format, accepted.name))
-        mapLibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(pickup, 17.0))
+
+        lifecycleScope.launch {
+            val pickupLabel = viewModel.geocodeRepo.reverseGeocode(
+                accepted.pickup.lat, accepted.pickup.lon,
+                getString(R.string.pickup_label_format, accepted.name)
+            )
+            val destLabel = viewModel.geocodeRepo.reverseGeocode(
+                accepted.destination.lat, accepted.destination.lon,
+                getString(R.string.dest_label_format, accepted.name)
+            )
+            runOnUiThread {
+                setPoint('A', pickup, pickupLabel)
+                setPoint('B', dest, destLabel)
+                mapController.fitBounds(mapLibreMap, listOf(pickup, dest))
+            }
+        }
 
         showToast(R.string.toast_passenger_accepted, accepted.name)
     }
@@ -401,11 +420,19 @@ class MainActivity : AppCompatActivity() {
         val accepted = viewModel.acceptAssistance(assistance.assistId) ?: return
         mapController.setActivePassenger(mapLibreMap, assistance.passengerId)
 
-        // Set route points (pickup only, no destination for assistance)
         val pickup = LatLng(accepted.pickup.lat, accepted.pickup.lon)
-        setPoint('A', pickup, getString(R.string.pickup_label_format, accepted.name))
-        binding.routeInputsContainer.visibility = View.GONE
-        mapLibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(pickup, 17.0))
+
+        lifecycleScope.launch {
+            val pickupLabel = viewModel.geocodeRepo.reverseGeocode(
+                accepted.pickup.lat, accepted.pickup.lon,
+                getString(R.string.pickup_label_format, accepted.name)
+            )
+            runOnUiThread {
+                setPoint('A', pickup, pickupLabel)
+                binding.routeInputsContainer.visibility = View.GONE
+                mapController.fitBounds(mapLibreMap, listOf(pickup))
+            }
+        }
 
         showToast(R.string.toast_passenger_accepted, accepted.name)
     }
@@ -697,7 +724,7 @@ class MainActivity : AppCompatActivity() {
             val status: TextView = view.findViewById(R.id.tvPassengerStatus)
             val pickup: TextView = view.findViewById(R.id.tvPickupAddr)
             val dest: TextView = view.findViewById(R.id.tvDestAddr)
-            val btnAccept: Button = view.findViewById(R.id.btnPassengerAccept)
+            val slider: SlideToAcceptView = view.findViewById(R.id.sliderPassengerAccept)
             val btnChat: Button = view.findViewById(R.id.btnPassengerChat)
         }
 
@@ -715,12 +742,15 @@ class MainActivity : AppCompatActivity() {
             if (p.isActive) {
                 holder.status.setText(R.string.passenger_active)
                 holder.dot.setBackgroundResource(R.drawable.bg_online_dot)
-                holder.btnAccept.visibility = View.GONE
+                holder.slider.visibility = View.GONE
+                holder.btnChat.visibility = View.VISIBLE
             } else {
                 holder.status.setText(R.string.passenger_waiting)
                 holder.dot.setBackgroundResource(R.drawable.bg_offline_dot)
-                holder.btnAccept.visibility = View.VISIBLE
-                holder.btnAccept.setOnClickListener { onAccept(p) }
+                holder.slider.visibility = View.VISIBLE
+                holder.slider.reset()
+                holder.slider.onSlideComplete = { onAccept(p) }
+                holder.btnChat.visibility = View.GONE
             }
             holder.btnChat.setOnClickListener { onChat(p) }
         }
@@ -752,7 +782,7 @@ class MainActivity : AppCompatActivity() {
             val phone: TextView = view.findViewById(R.id.tvAssistancePhone)
             val desc: TextView = view.findViewById(R.id.tvAssistanceDesc)
             val pickup: TextView = view.findViewById(R.id.tvAssistancePickup)
-            val btnAccept: Button = view.findViewById(R.id.btnAssistanceAccept)
+            val slider: SlideToAcceptView = view.findViewById(R.id.sliderAssistanceAccept)
             val btnChat: Button = view.findViewById(R.id.btnAssistanceChat)
         }
 
@@ -774,12 +804,16 @@ class MainActivity : AppCompatActivity() {
             if (a.isActive) {
                 holder.status.setText(R.string.passenger_active)
                 holder.dot.setBackgroundResource(R.drawable.bg_online_dot)
-                holder.btnAccept.visibility = View.GONE
+                holder.slider.visibility = View.GONE
+                holder.btnChat.visibility = View.VISIBLE
             } else {
                 holder.status.setText(R.string.passenger_waiting)
                 holder.dot.setBackgroundResource(R.drawable.bg_assistance_dot)
-                holder.btnAccept.visibility = View.VISIBLE
-                holder.btnAccept.setOnClickListener { onAccept(a) }
+                holder.slider.visibility = View.VISIBLE
+                holder.slider.setAccentColor(0xFFF44336.toInt())
+                holder.slider.reset()
+                holder.slider.onSlideComplete = { onAccept(a) }
+                holder.btnChat.visibility = View.GONE
             }
             holder.btnChat.setOnClickListener { onChat(a) }
         }
@@ -1036,7 +1070,10 @@ class MainActivity : AppCompatActivity() {
 
         // ─── Старый протокол (совместимость) ─────────────────────────────────
         rideSocket.onIncomingRide = { rideId, passengerName, pLat, pLon, dLat, dLon ->
-            runOnUiThread { showIncomingRideDialog(rideId, passengerName, pLat, pLon, dLat, dLon) }
+            runOnUiThread {
+                playNotificationSound()
+                showIncomingRideDialog(rideId, passengerName, pLat, pLon, dLat, dLon)
+            }
         }
         rideSocket.onLocationUpdate = { lat, lon ->
             runOnUiThread { mapController.updatePassengerLocation(mapLibreMap, "legacy", lat, lon) }
@@ -1059,6 +1096,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 viewModel.addWaitingPassenger(passengerId, name, pLat, pLon, dLat, dLon)
                 mapController.addWaitingPassenger(mapLibreMap, passengerId, pLat, pLon, name)
+                playNotificationSound()
                 showToast(R.string.toast_passenger_waiting, name)
             }
         }
@@ -1107,6 +1145,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 viewModel.addWaitingAssistance(assistId, passengerId, name, pLat, pLon, carMake, breakdownType, phone, description)
                 mapController.addWaitingPassenger(mapLibreMap, passengerId, pLat, pLon, name)
+                playNotificationSound()
                 showToast(R.string.toast_assistance_waiting, name)
             }
         }
@@ -1195,9 +1234,18 @@ class MainActivity : AppCompatActivity() {
             countdownHandler?.removeCallbacksAndMessages(null)
             rideSocket.acceptRide(rideId)
             val pickupLatLng = LatLng(pickupLat, pickupLon)
-            setPoint('A', pickupLatLng, "$passengerName: посадка")
-            setPoint('B', LatLng(destLat, destLon), "$passengerName: назначение")
-            mapLibreMap?.easeCamera(CameraUpdateFactory.newLatLngZoom(pickupLatLng, 17.0))
+            val destLatLng = LatLng(destLat, destLon)
+            lifecycleScope.launch {
+                val pickupLabel = viewModel.geocodeRepo.reverseGeocode(
+                    pickupLat, pickupLon, String.format(Locale.US, "%.5f, %.5f", pickupLat, pickupLon))
+                val destLabel = viewModel.geocodeRepo.reverseGeocode(
+                    destLat, destLon, String.format(Locale.US, "%.5f, %.5f", destLat, destLon))
+                runOnUiThread {
+                    setPoint('A', pickupLatLng, pickupLabel)
+                    setPoint('B', destLatLng, destLabel)
+                    mapController.fitBounds(mapLibreMap, listOf(pickupLatLng, destLatLng))
+                }
+            }
             dialog.dismiss()
         }
 
@@ -1348,6 +1396,40 @@ class MainActivity : AppCompatActivity() {
         binding.routeInputsContainer.visibility = View.VISIBLE
         mapController.updatePointMarker(mapLibreMap, target, latLng, label)
         updateGoButtonState()
+    }
+
+    /** Звук + вибро при входящем заказе/вызове */
+    private fun playNotificationSound() {
+        try {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val ringtone = RingtoneManager.getRingtone(this, uri)
+            ringtone?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    it.audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                }
+                it.play()
+            }
+        } catch (_: Exception) {}
+
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vm.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+            val pattern = longArrayOf(0, 200, 100, 200, 100, 200)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(pattern, -1)
+            }
+        } catch (_: Exception) {}
     }
 
     private fun formatCoords(latLng: LatLng): String =

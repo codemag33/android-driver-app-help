@@ -124,17 +124,13 @@
                 android:text="@string/chat_short"
                 android:textColor="@color/uber_blue"
                 android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/btnAssistanceAccept"
-                style="@style/Widget.MaterialComponents.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginStart="8dp"
-                android:backgroundTint="#F44336"
-                android:text="@string/ride_accept"
-                android:textColor="@color/uber_black"
-                android:textSize="12sp" />
         </LinearLayout>
+
+        <com.driver.app.widget.SlideToAcceptView
+            android:id="@+id/sliderAssistanceAccept"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="visible" />
     </LinearLayout>
 </androidx.cardview.widget.CardView>
