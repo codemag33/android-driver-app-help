@@ -42,10 +42,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .addr-group input:focus{border-color:var(--blue)}
 .addr-group .icon{position:absolute;left:10px;bottom:12px;color:var(--text2);font-size:16px}
 .addr-suggestions{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:50;display:none}
-.addr-suggestions.show{display:block}
-.addr-suggestions .item{padding:10px 14px;font-size:14px;border-bottom:1px solid var(--border);cursor:pointer}
-.addr-suggestions .item:active{background:var(--card2)}
-.addr-suggestions .item small{color:var(--text2);font-size:12px}
+ .addr-suggestions.show{display:block}
+ .addr-suggestions.fixed{position:fixed;z-index:100}
+ .addr-suggestions .item{padding:10px 14px;font-size:14px;border-bottom:1px solid var(--border);cursor:pointer}
+ .addr-suggestions .item:active{background:var(--card2)}
+ .addr-suggestions .item small{color:var(--text2);font-size:12px}
 .location-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;margin-bottom:16px;cursor:pointer}
 .location-btn:active{background:var(--border)}
 .location-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
@@ -281,13 +282,19 @@ $('locationBtn').onclick=()=>{
 };
 async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();if(!d.display_name)return'';const parts=d.display_name.split(',');return parts.slice(0,3).join(', ')}catch(e){return''}}
 
+// ═══ Suggest helpers (position:fixed to avoid scroll-clipping) ═══
+function hideSuggestions(el){if(el.length){el.forEach(hideSuggestions);return}el.style.display='none';el.innerHTML=''}
+function positionSuggestions(input,list){const r=input.getBoundingClientRect();list.style.top=(r.bottom+4)+'px';list.style.left=r.left+'px';list.style.width=r.width+'px';list.classList.add('fixed')}
+document.addEventListener('scroll',()=>hideSuggestions(document.querySelectorAll('.addr-suggestions')),true);
+
 // ═══ Destination search ════════════════════════════════════════
 let st=null;
-$('destInput').addEventListener('input',()=>{clearTimeout(st);const q=$('destInput').value.trim();if(q.length<3){$('destSuggestions').classList.remove('show');return}st=setTimeout(()=>searchAddr(q),400)});
+$('destInput').addEventListener('input',()=>{clearTimeout(st);const q=$('destInput').value.trim();if(q.length<3){hideSuggestions($('destSuggestions'));return}st=setTimeout(()=>searchAddr(q),400)});
 async function searchAddr(q){
-  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('destSuggestions');b.innerHTML='';if(!d.length){b.classList.remove('show');return}
+  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('destSuggestions');b.innerHTML='';if(!d.length){hideSuggestions(b);return}
+  b.style.display='block';positionSuggestions($('destInput'),b);
   d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{destLat=parseFloat(i.lat);destLon=parseFloat(i.lon);$('destInput').value=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');updBtn()};b.appendChild(div)});b.classList.add('show')}catch(e){}
+  div.onclick=()=>{destLat=parseFloat(i.lat);destLon=parseFloat(i.lon);$('destInput').value=i.display_name.split(',').slice(0,3).join(', ');hideSuggestions(b);updBtn()};b.appendChild(div)})}catch(e){}
 }
 
 // ═══ Pickup search (manual fallback) ════════════════════════
@@ -295,13 +302,14 @@ let stPickup=null;
 $('pickupInput').addEventListener('focus',()=>{$('pickupInput').select()});
 $('pickupInput').addEventListener('input',()=>{
   clearTimeout(stPickup);const q=$('pickupInput').value.trim();
-  if(q.length<3){$('pickupSuggestions').classList.remove('show');return}
+  if(q.length<3){hideSuggestions($('pickupSuggestions'));return}
   stPickup=setTimeout(()=>searchPickup(q),400);
 });
 async function searchPickup(q){
-  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('pickupSuggestions');b.innerHTML='';if(!d.length){b.classList.remove('show');return}
+  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('pickupSuggestions');b.innerHTML='';if(!d.length){hideSuggestions(b);return}
+  b.style.display='block';positionSuggestions($('pickupInput'),b);
   d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('pickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('pickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');updBtn()};b.appendChild(div)});b.classList.add('show')}catch(e){}
+  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('pickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('pickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');hideSuggestions(b);updBtn()};b.appendChild(div)})}catch(e){}
 }
 function updBtn(){$('requestBtn').disabled=!(destLat&&destLon)}
 
@@ -369,14 +377,15 @@ let stAssistPickup=null;
 $('assistPickupInput').addEventListener('focus',()=>{$('assistPickupInput').select()});
 $('assistPickupInput').addEventListener('input',()=>{
   clearTimeout(stAssistPickup);const q=$('assistPickupInput').value.trim();
-  if(q.length<3){$('assistPickupSuggestions').classList.remove('show');return}
+  if(q.length<3){hideSuggestions($('assistPickupSuggestions'));return}
   stAssistPickup=setTimeout(()=>searchAssistPickup(q),400);
 });
 async function searchAssistPickup(q){
   try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('assistPickupSuggestions');b.innerHTML='';
-  if(!d.length){b.classList.remove('show');return}
+  if(!d.length){hideSuggestions(b);return}
+  b.style.display='block';positionSuggestions($('assistPickupInput'),b);
   d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('assistPickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('assistPickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');b.classList.remove('show');updAssistBtn()};b.appendChild(div)});b.classList.add('show')}catch(e){}
+  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('assistPickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('assistPickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');hideSuggestions(b);updAssistBtn()};b.appendChild(div)})}catch(e){}
 }
 $('assistSubmit').onclick=()=>{
   if(!$('phoneInput').value.trim()||!$('carMakeInput').value.trim()||!bType)return;
