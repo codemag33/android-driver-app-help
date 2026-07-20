@@ -351,6 +351,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnGo.setOnClickListener { onGoClicked() }
         binding.btnFinishOrder.setOnClickListener { finishOrder() }
         binding.fabMyLocation.setOnClickListener { recenterOnMyLocation() }
+        binding.fabTogglePanel.setOnClickListener { toggleBottomSheet() }
         binding.searchBar.setOnClickListener {
             val target = if (viewModel.tripState.value.pointA == null) 'A' else 'B'
             openAddressSearchDialog(target)
@@ -447,7 +448,6 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 setPoint('A', pickup, pickupLabel)
                 binding.routeInputsContainer.visibility = View.GONE
-                binding.orderInfoGroup.visibility = View.VISIBLE
                 showBottomSheet()
                 mapController.fitBounds(mapLibreMap, listOf(pickup))
             }
@@ -1029,6 +1029,7 @@ class MainActivity : AppCompatActivity() {
             binding.bottomSheet.visibility = View.GONE
             binding.btnConfirmPin.visibility = View.GONE
             binding.fabMyLocation.visibility = View.INVISIBLE
+            binding.fabTogglePanel.visibility = View.GONE
             binding.pipStatusText.visibility = View.VISIBLE
             binding.pipStatusText.text = viewModel.getPipStatusText()
         } else {
@@ -1037,12 +1038,11 @@ class MainActivity : AppCompatActivity() {
             updateWaitingContainerVisibility()
             val state = viewModel.tripState.value
             if (state.pointA != null || state.pointB != null) {
-                binding.routeInputsContainer.visibility = View.VISIBLE
-                binding.orderInfoGroup.visibility = View.VISIBLE
                 showBottomSheet()
             }
             binding.bottomSheet.visibility = View.VISIBLE
             binding.fabMyLocation.visibility = View.VISIBLE
+            binding.fabTogglePanel.visibility = View.VISIBLE
             binding.pipStatusText.visibility = View.GONE
         }
     }
@@ -1080,8 +1080,6 @@ class MainActivity : AppCompatActivity() {
         binding.etPointB.setText("")
         binding.tvDestAddress.setText(R.string.dest_address_placeholder)
         binding.btnConfirmPin.visibility = View.GONE
-        binding.routeInputsContainer.visibility = View.GONE
-        binding.orderInfoGroup.visibility = View.GONE
         binding.waitingListsContainer.visibility = View.GONE
         binding.destPin.visibility = View.GONE
         chatLogView = null
@@ -1457,8 +1455,6 @@ class MainActivity : AppCompatActivity() {
                 binding.tvDestAddress.text = label
             }
         }
-        binding.routeInputsContainer.visibility = View.VISIBLE
-        binding.orderInfoGroup.visibility = View.VISIBLE
         mapController.updatePointMarker(mapLibreMap, target, latLng, label)
         showBottomSheet()
         updateGoButtonState()
@@ -1472,6 +1468,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun hideBottomSheet() {
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+    }
+
+    private fun toggleBottomSheet() {
+        if (bottomSheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN) {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+        } else {
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
     }
 
     private fun updateBottomSheetVisibility() {

@@ -126,6 +126,20 @@
             app:tint="@color/uber_text_secondary" />
     </LinearLayout>
 
+    <!-- ═══ Toggle order panel button — bottom center ═══ -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabTogglePanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:layout_marginEnd="16dp"
+        android:src="@drawable/ic_order_panel"
+        app:backgroundTint="@color/uber_card"
+        app:tint="@color/uber_text_primary"
+        app:fabSize="mini"
+        app:elevation="6dp" />
+
     <!-- ═══ GPS button — bottom right, above bottom sheet ═══ -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabMyLocation"
@@ -208,14 +222,13 @@
             android:layout_marginBottom="10dp"
             android:background="@drawable/bg_drag_handle" />
 
-        <!-- Route inputs (hidden by default) -->
+        <!-- Route inputs -->
         <androidx.cardview.widget.CardView
             android:id="@+id/routeInputsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:visibility="gone"
             app:cardBackgroundColor="@color/uber_card"
             app:cardCornerRadius="12dp"
             app:cardElevation="0dp">
@@ -343,8 +356,7 @@
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
             android:paddingTop="4dp"
-            android:paddingBottom="16dp"
-            android:visibility="gone">
+            android:paddingBottom="16dp">
 
             <TextView
                 android:id="@+id/tvDestAddress"
