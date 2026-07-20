@@ -1489,7 +1489,6 @@ class MainActivity : AppCompatActivity() {
         val hasPassengers = viewModel.waitingPassengers.value.isNotEmpty()
         val hasAssistances = viewModel.waitingAssistances.value.isNotEmpty()
         binding.waitingListsContainer.visibility = if (hasPassengers || hasAssistances) View.VISIBLE else View.GONE
-        updateBottomSheetVisibility()
     }
 
     /** Звук + вибро при входящем заказе/вызове */
