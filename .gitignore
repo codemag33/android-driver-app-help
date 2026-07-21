@@ -1,8 +1,12 @@
-.gradle/
-build/
-app/build/
-local.properties
 *.iml
-.idea/
+*.tar.gz
 .DS_Store
+.env
+.gradle/
+.idea/
+admin/yanpro-full.tar.gz
+android-driver-app.tar.gz
+app/build/
+build/
+local.properties
 node_modules/

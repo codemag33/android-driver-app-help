@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Yan.Pro — Водитель</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1A1A1A">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.css" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  :root{
+    --bg:#141414; --card:#1F1F1F; --card2:#2A2A2A; --yellow:#FFCC00; --yellow-dark:#E0B400;
+    --text:#FFFFFF; --muted:#9A9A9A; --danger:#FF5252; --green:#3DCC6E; --radius:18px;
+    --shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0; font-family:-apple-system,Roboto,Segoe UI,sans-serif; background:var(--bg); color:var(--text); overscroll-behavior:none;}
+  #map{position:absolute; inset:0;}
+  .hidden{display:none !important;}
+  button{font-family:inherit; border:none; cursor:pointer;}
+
+  /* ── Авторизация ────────────────────────────────────────────────── */
+  #authScreen{position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; justify-content:center; padding:24px; z-index:50;}
+  #authScreen h1{color:var(--yellow); font-size:28px; margin:0 0 4px; text-align:center;}
+  #authScreen p.sub{color:var(--muted); margin:0 0 24px; text-align:center;}
+  .authCard{background:var(--card); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow);}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:4px;}
+  .field input,.field select{width:100%; padding:12px 14px; border:1px solid #3A3A3A; border-radius:10px; font-size:16px; background:var(--card2); color:var(--text);}
+  .primaryBtn{width:100%; padding:15px; background:var(--yellow); color:#111; border-radius:12px; font-size:16px; font-weight:700;}
+  .primaryBtn:active{background:var(--yellow-dark);}
+  .primaryBtn:disabled{opacity:.4;}
+  .linkBtn{background:none; color:var(--yellow); font-size:14px; width:100%; padding:10px; margin-top:6px;}
+  .authError{color:var(--danger); font-size:13px; margin:8px 0 0; min-height:16px;}
+  .roleToggle{display:flex; gap:8px; margin-bottom:12px;}
+  .roleOpt{flex:1; padding:10px; text-align:center; border-radius:10px; background:var(--card2); color:var(--muted); font-size:14px; font-weight:600; border:1px solid #3A3A3A;}
+  .roleOpt.active{background:var(--yellow); color:#111; border-color:var(--yellow);}
+
+  /* ── Верхняя панель ─────────────────────────────────────────────── */
+  #topBar{position:fixed; top:0; left:0; right:0; padding:12px; display:flex; align-items:center; gap:10px; z-index:20;}
+  .pill{background:var(--card); border-radius:24px; box-shadow:var(--shadow); display:flex; align-items:center; padding:6px; gap:8px;}
+  #onlineSwitch{display:flex; align-items:center; gap:8px; padding:8px 14px 8px 10px;}
+  .switchTrack{width:42px; height:24px; border-radius:12px; background:#3A3A3A; position:relative; transition:background .2s;}
+  .switchTrack.on{background:var(--green);}
+  .switchKnob{width:20px; height:20px; border-radius:50%; background:#fff; position:absolute; top:2px; left:2px; transition:left .2s;}
+  .switchTrack.on .switchKnob{left:20px;}
+  #onlineLabel{font-size:13px; font-weight:600;}
+  #earningsPill{margin-left:auto; padding:10px 16px; font-size:14px; font-weight:700; color:var(--yellow);}
+  #earningsPill span.count{color:var(--muted); font-weight:400; font-size:12px; margin-left:4px;}
+  .roundBtn{width:44px; height:44px; border-radius:50%; background:var(--card); box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; color:#fff;}
+
+  /* ── Карточка входящего заказа ──────────────────────────────────── */
+  #requestCard{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-radius:22px 22px 0 0; box-shadow:0 -8px 32px rgba(0,0,0,.5); padding:18px 18px calc(18px + env(safe-area-inset-bottom)); z-index:40;}
+  #timerBar{height:4px; background:#3A3A3A; border-radius:2px; margin-bottom:16px; overflow:hidden;}
+  #timerFill{height:100%; background:var(--yellow); width:100%; transition:width linear;}
+  .reqBadge{display:inline-block; background:var(--yellow); color:#111; font-size:11px; font-weight:700; padding:4px 10px; border-radius:8px; margin-bottom:10px;}
+  .reqName{font-size:19px; font-weight:700; margin-bottom:12px;}
+  .addrRow{display:flex; align-items:flex-start; gap:10px; padding:9px 0;}
+  .dot{width:10px; height:10px; border-radius:50%; margin-top:5px; flex-shrink:0;}
+  .dot.pickup{background:var(--green);}
+  .dot.dest{background:var(--danger);}
+  .addrText{font-size:14px; line-height:1.4; color:#DDD;}
+  .reqMeta{font-size:13px; color:var(--muted); margin:8px 0 14px;}
+  .reqActions{display:flex; gap:10px;}
+  .reqActions button{flex:1; padding:16px; border-radius:14px; font-size:16px; font-weight:700;}
+  .btnAccept{background:var(--yellow); color:#111;}
+  .btnDecline{background:var(--card2); color:#DDD;}
+
+  /* ── Нижний лист активного заказа ──────────────────────────────── */
+  #sheet{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-radius:20px 20px 0 0; box-shadow:0 -4px 24px rgba(0,0,0,.4); padding:14px 16px calc(16px + env(safe-area-inset-bottom)); z-index:30; max-height:60vh; overflow-y:auto;}
+  .dragHandle{width:36px; height:4px; background:#3A3A3A; border-radius:2px; margin:0 auto 12px;}
+  .passRow{display:flex; align-items:center; gap:12px; padding:6px 0 14px;}
+  .avatar{width:48px; height:48px; border-radius:50%; background:var(--yellow); color:#111; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; flex-shrink:0;}
+  .passInfo .name{font-weight:700; font-size:16px;}
+  .passInfo .role{font-size:12px; color:var(--muted);}
+  .sheetAddr{font-size:13px; color:#CCC; padding:8px 0; border-top:1px solid #333;}
+  .actionsRow{display:flex; gap:10px; margin-top:10px;}
+  .actionsRow button{flex:1; padding:14px; border-radius:12px; font-size:14px; font-weight:700;}
+  .btnYellow{background:var(--yellow); color:#111;}
+  .btnGray{background:var(--card2); color:#fff;}
+  .btnDanger{background:#3A2222; color:var(--danger);}
+
+  /* ── Чат ──────────────────────────────────────────────────────────── */
+  #chatOverlay{position:fixed; inset:0; background:var(--card); z-index:60; display:flex; flex-direction:column;}
+  #chatHeader{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #333;}
+  #chatHeader .backBtn{font-size:20px; background:none; padding:4px; color:#fff;}
+  #chatMessages{flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:8px;}
+  .msg{max-width:75%; padding:10px 13px; border-radius:14px; font-size:14px; line-height:1.35;}
+  .msg.mine{align-self:flex-end; background:var(--yellow); color:#111; border-bottom-right-radius:4px;}
+  .msg.theirs{align-self:flex-start; background:var(--card2); color:#fff; border-bottom-left-radius:4px;}
+  #chatInputRow{display:flex; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid #333;}
+  #chatInputRow input{flex:1; padding:12px 14px; border-radius:20px; border:1px solid #3A3A3A; background:var(--card2); color:#fff; font-size:15px;}
+  #chatInputRow button{width:44px; height:44px; border-radius:50%; background:var(--yellow); color:#111; font-size:18px;}
+
+  /* ── История ──────────────────────────────────────────────────────── */
+  #historyOverlay{position:fixed; inset:0; background:var(--bg); z-index:60; display:flex; flex-direction:column;}
+  #historyHeader{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #333;}
+  #historyHeader .backBtn{font-size:20px; background:none; padding:4px; color:#fff;}
+  #historyList{flex:1; overflow-y:auto; padding:12px;}
+  .histItem{background:var(--card); border-radius:14px; padding:14px; margin-bottom:10px;}
+  .histItem .top{display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px;}
+  .histItem .addr{font-size:13px; color:var(--muted); line-height:1.4;}
+  .histItem .status-cancelled{color:var(--danger); font-weight:600; font-size:12px;}
+
+  #toast{position:fixed; left:50%; bottom:110px; transform:translateX(-50%); background:#000; color:#fff; padding:10px 18px; border-radius:22px; font-size:13px; z-index:80; opacity:0; transition:opacity .25s; pointer-events:none; box-shadow:var(--shadow);}
+  #toast.show{opacity:1;}
+
+  .selfMarker{width:36px; height:36px; border-radius:50%; background:var(--yellow); border:3px solid #fff; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; font-size:16px;}
+  .passMarker{width:30px; height:30px; border-radius:50%; background:#fff; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; font-size:15px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ ЭКРАН ВХОДА ═══════════════ -->
+<div id="authScreen">
+  <h1>Yan.Pro</h1>
+  <p class="sub">Кабинет водителя / механика</p>
+  <div class="authCard">
+    <div id="loginForm">
+      <div class="field"><label>Логин</label><input id="loginLogin" autocomplete="username"></div>
+      <div class="field"><label>Пароль</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+      <button class="primaryBtn" id="btnLogin">Войти</button>
+      <button class="linkBtn" id="toRegister">Нет аккаунта? Зарегистрироваться</button>
+    </div>
+    <div id="registerForm" class="hidden">
+      <div class="roleToggle">
+        <div class="roleOpt active" id="roleDriverOpt">🚕 Водитель</div>
+        <div class="roleOpt" id="roleMechanicOpt">🔧 Механик</div>
+      </div>
+      <div class="field"><label>Имя</label><input id="regName"></div>
+      <div class="field"><label>Логин</label><input id="regLogin" autocomplete="username"></div>
+      <div class="field"><label>Телефон</label><input id="regPhone" type="tel" placeholder="+7..."></div>
+      <div class="field"><label>Пароль (мин. 6 символов)</label><input id="regPass" type="password" autocomplete="new-password"></div>
+      <div id="vehicleFields">
+        <div class="field"><label>Марка автомобиля</label><input id="regVehicleMake"></div>
+        <div class="field"><label>Госномер</label><input id="regVehiclePlate"></div>
+      </div>
+      <button class="primaryBtn" id="btnRegister">Зарегистрироваться</button>
+      <button class="linkBtn" id="toLogin">Уже есть аккаунт? Войти</button>
+    </div>
+    <div class="authError" id="authError"></div>
+  </div>
+  <button class="linkBtn" id="btnServerSettings" style="color:#777; margin-top:16px;">⚙ Адрес сервера</button>
+</div>
+
+<!-- ═══════════════ КАРТА / ОСНОВНОЕ ПРИЛОЖЕНИЕ ═══════════════ -->
+<div id="map"></div>
+
+<div id="topBar" class="hidden">
+  <div class="pill" id="onlineSwitch">
+    <div class="switchTrack" id="switchTrack"><div class="switchKnob"></div></div>
+    <span id="onlineLabel">Оффлайн</span>
+  </div>
+  <button class="roundBtn" id="btnHistory">📋</button>
+  <div class="pill" id="earningsPill">₽0<span class="count" id="ridesCount"></span></div>
+  <button class="roundBtn" id="btnMenu">☰</button>
+</div>
+
+<div id="requestCard" class="hidden"></div>
+<div id="sheet" class="hidden"></div>
+<div id="toast"></div>
+
+<!-- ═══════════════ ЧАТ ═══════════════ -->
+<div id="chatOverlay" class="hidden">
+  <div id="chatHeader">
+    <button class="backBtn" id="chatBack">←</button>
+    <div class="passInfo"><div class="name" id="chatPeerName">Пассажир</div></div>
+  </div>
+  <div id="chatMessages"></div>
+  <div id="chatInputRow">
+    <input id="chatInput" placeholder="Сообщение...">
+    <button id="chatSend">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════ ИСТОРИЯ ═══════════════ -->
+<div id="historyOverlay" class="hidden">
+  <div id="historyHeader">
+    <button class="backBtn" id="historyBack">←</button>
+    <div style="font-weight:700; font-size:16px;">История поездок</div>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<script>
+'use strict';
+
+/* ════════════════════════ СОСТОЯНИЕ ════════════════════════ */
+const ORENBURG = { lat: 51.7727, lon: 55.0988 };
+const state = {
+  serverUrl: localStorage.getItem('yanpro_driver_server_url') || 'https://your-server.example',
+  token: localStorage.getItem('yanpro_driver_token') || null,
+  user: JSON.parse(localStorage.getItem('yanpro_driver_user') || 'null'),
+  regRole: 'driver',
+  socket: null,
+  map: null,
+  markers: { self: null, passenger: null },
+  isOnline: false,
+  pendingRequest: null,   // входящий заказ/заявка, ждущая решения водителя
+  countdownTimer: null,
+  activeRide: null,       // {id, status, ...}
+  activeAssist: null,
+  chatContext: null,
+  earnings: { total: 0, rides: 0 },
+};
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function isMechanic() { return state.user?.role === 'mechanic'; }
+
+/* ════════════════════════ REST API ════════════════════════ */
+async function api(path, method = 'GET', body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const res = await fetch(state.serverUrl + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `http_${res.status}`);
+  return data;
+}
+
+/* ════════════════════════ АВТОРИЗАЦИЯ ════════════════════════ */
+const authError = document.getElementById('authError');
+document.getElementById('toRegister').onclick = () => {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('registerForm').classList.remove('hidden');
+  authError.textContent = '';
+};
+document.getElementById('toLogin').onclick = () => {
+  document.getElementById('registerForm').classList.add('hidden');
+  document.getElementById('loginForm').classList.remove('hidden');
+  authError.textContent = '';
+};
+document.getElementById('roleDriverOpt').onclick = () => setRegRole('driver');
+document.getElementById('roleMechanicOpt').onclick = () => setRegRole('mechanic');
+function setRegRole(role) {
+  state.regRole = role;
+  document.getElementById('roleDriverOpt').classList.toggle('active', role === 'driver');
+  document.getElementById('roleMechanicOpt').classList.toggle('active', role === 'mechanic');
+  document.getElementById('vehicleFields').classList.toggle('hidden', false); // и механику нужен авто для выезда
+}
+document.getElementById('btnServerSettings').onclick = () => {
+  const url = prompt('Адрес сервера', state.serverUrl);
+  if (url) { state.serverUrl = url.trim().replace(/\/$/, ''); localStorage.setItem('yanpro_driver_server_url', state.serverUrl); toast('Сохранено'); }
+};
+
+document.getElementById('btnLogin').onclick = async () => {
+  const login = document.getElementById('loginLogin').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!login || !password) { authError.textContent = 'Заполните все поля'; return; }
+  try { onAuthSuccess(await api('/api/auth/login', 'POST', { login, password })); }
+  catch { authError.textContent = 'Неверный логин или пароль'; }
+};
+
+document.getElementById('btnRegister').onclick = async () => {
+  const name = document.getElementById('regName').value.trim();
+  const login = document.getElementById('regLogin').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPass').value;
+  const vehicle_make = document.getElementById('regVehicleMake').value.trim();
+  const vehicle_plate = document.getElementById('regVehiclePlate').value.trim();
+  if (!name || !login || password.length < 6) { authError.textContent = 'Проверьте поля (пароль от 6 символов)'; return; }
+  try {
+    const data = await api('/api/auth/register', 'POST', { name, login, phone, password, role: state.regRole, vehicle_make, vehicle_plate });
+    onAuthSuccess(data);
+  } catch (e) { authError.textContent = e.message === 'login_taken' ? 'Логин уже занят' : 'Ошибка регистрации'; }
+};
+
+function onAuthSuccess(data) {
+  state.token = data.token; state.user = data.user;
+  localStorage.setItem('yanpro_driver_token', state.token);
+  localStorage.setItem('yanpro_driver_user', JSON.stringify(state.user));
+  startApp();
+}
+
+/* ════════════════════════ СТАРТ ════════════════════════ */
+function startApp() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('topBar').classList.remove('hidden');
+  if (!state.map) initMap();
+  connectSocket();
+  document.getElementById('earningsPill').firstChild.textContent = '₽0';
+  fetchEarnings();
+}
+if (state.token && state.user) startApp();
+
+/* ════════════════════════ КАРТА ════════════════════════ */
+function initMap() {
+  state.map = new maplibregl.Map({
+    container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [ORENBURG.lon, ORENBURG.lat], zoom: 13,
+  });
+  state.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+}
+function placeMarker(kind, lat, lon, glyph) {
+  if (state.markers[kind]) state.markers[kind].remove();
+  const el = document.createElement('div');
+  el.className = kind === 'self' ? 'selfMarker' : 'passMarker';
+  el.textContent = glyph || (kind === 'self' ? '🚗' : '📍');
+  state.markers[kind] = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(state.map);
+}
+
+/* ════════════════════════ ГЕОЛОКАЦИЯ ════════════════════════
+   Как и в PWA пассажира — деградация без падений: если вотчер геолокации не
+   отвечает, просто не шлём координаты, ничего не рушится. */
+let geoWatchId = null;
+function startLocationWatch() {
+  if (!navigator.geolocation || geoWatchId !== null) return;
+  geoWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      placeMarker('self', lat, lon, isMechanic() ? '🔧' : '🚗');
+      if (state.socket) {
+        state.socket.emit('location:update', {
+          lat, lon,
+          rideId: state.activeRide?.id,
+          assistId: state.activeAssist?.id,
+        });
+      }
+    },
+    () => {},
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+  );
+}
+function stopLocationWatch() {
+  if (geoWatchId !== null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
+}
+
+/* ════════════════════════ ОНЛАЙН/ОФФЛАЙН ════════════════════════ */
+document.getElementById('onlineSwitch').onclick = () => {
+  state.isOnline = !state.isOnline;
+  document.getElementById('switchTrack').classList.toggle('on', state.isOnline);
+  document.getElementById('onlineLabel').textContent = state.isOnline ? 'На линии' : 'Оффлайн';
+  state.socket?.emit('driver:status', { status: state.isOnline ? 'online' : 'offline' });
+  if (state.isOnline) { startLocationWatch(); toast('Вы на линии — принимаем заказы'); }
+  else { stopLocationWatch(); toast('Вы оффлайн'); }
+};
+
+/* ════════════════════════ ЗАРАБОТОК ════════════════════════ */
+async function fetchEarnings() {
+  try {
+    const data = await api('/api/driver/stats/today');
+    state.earnings.total = data.earningsToday;
+    state.earnings.rides = data.ridesToday + data.assistsToday;
+    renderEarnings();
+  } catch { /* не критично — просто не обновляем бейдж */ }
+}
+function renderEarnings() {
+  const pill = document.getElementById('earningsPill');
+  pill.innerHTML = `₽${Math.round(state.earnings.total)}<span class="count" id="ridesCount"> · ${state.earnings.rides}</span>`;
+}
+
+document.getElementById('btnHistory').onclick = openHistory;
+document.getElementById('historyBack').onclick = () => document.getElementById('historyOverlay').classList.add('hidden');
+async function openHistory() {
+  document.getElementById('historyOverlay').classList.remove('hidden');
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<div style="color:#777;text-align:center;padding:20px;">Загрузка...</div>';
+  try {
+    const data = await api('/api/driver/history');
+    if (!data.rides.length) { list.innerHTML = '<div style="color:#777;text-align:center;padding:20px;">Пока пусто</div>'; return; }
+    list.innerHTML = '';
+    data.rides.forEach((r) => {
+      const div = document.createElement('div');
+      div.className = 'histItem';
+      const date = r.finished_at ? new Date(r.finished_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+      div.innerHTML = `
+        <div class="top"><span>${date}</span><span>${r.status === 'cancelled' ? '<span class=\"status-cancelled\">Отменено</span>' : (r.price ? '₽' + r.price : '')}</span></div>
+        <div class="addr">${r.pickup_address || ''} ${r.destination_address ? '→ ' + r.destination_address : ''}</div>
+      `;
+      list.appendChild(div);
+    });
+  } catch { list.innerHTML = '<div style="color:#777;text-align:center;padding:20px;">Не удалось загрузить</div>'; }
+}
+
+/* ════════════════════════ SOCKET.IO ════════════════════════ */
+function connectSocket() {
+  if (state.socket) state.socket.disconnect();
+  state.socket = io(state.serverUrl, { auth: { token: state.token }, transports: ['websocket', 'polling'] });
+
+  state.socket.on('connect_error', (err) => {
+    if (err.message === 'invalid_token' || err.message === 'no_token') logout();
+    else toast('Нет соединения с сервером');
+  });
+  state.socket.on('connect', () => toast('Подключено к серверу'));
+
+  state.socket.on('session:restore_ride', (ride) => {
+    state.activeRide = { id: ride.id, status: ride.status, name: ride.passenger_name || 'Пассажир',
+      pickup: { lat: ride.pickup_lat, lon: ride.pickup_lon, address: ride.pickup_address },
+      destination: { lat: ride.destination_lat, lon: ride.destination_lon, address: ride.destination_address } };
+    renderActiveRide();
+  });
+  state.socket.on('session:restore_assist', (a) => {
+    state.activeAssist = { id: a.id, status: a.status, carMake: a.car_make, breakdownType: a.breakdown_type,
+      pickup: { lat: a.pickup_lat, lon: a.pickup_lon } };
+    renderActiveAssist();
+  });
+
+  // ─── Входящие заказы ────────────────────────────────────────────────
+  state.socket.on('ride:new_request', (data) => {
+    if (state.activeRide || state.activeAssist || state.pendingRequest) return; // один заказ за раз
+    showIncomingRequest('ride', data);
+  });
+  state.socket.on('ride:already_taken', () => { if (state.pendingRequest) dismissIncomingRequest(); toast('Заказ уже занят другим водителем'); });
+  state.socket.on('ride:closed_for_others', (data) => {
+    if (state.pendingRequest?.rideId === data.rideId) dismissIncomingRequest();
+  });
+  state.socket.on('ride:accepted', (data) => {
+    // Наш собственный accept подтверждён сервером
+    if (state.activeRide) { state.activeRide.status = 'accepted'; renderActiveRide(); }
+  });
+  state.socket.on('ride:started', () => { if (state.activeRide) { state.activeRide.status = 'in_progress'; renderActiveRide(); } });
+  state.socket.on('ride:finished', () => { toast('Поездка завершена'); fetchEarnings(); resetRide(); });
+  state.socket.on('ride:cancelled', (data) => { toast(data.by === 'passenger' ? 'Пассажир отменил поездку' : 'Поездка отменена'); resetRide(); });
+  state.socket.on('ride:passenger_location', (data) => placeMarker('passenger', data.lat, data.lon, '🧍'));
+
+  // ─── Входящие заявки на помощь ──────────────────────────────────────
+  state.socket.on('assistance:new_request', (data) => {
+    if (state.activeRide || state.activeAssist || state.pendingRequest) return;
+    showIncomingRequest('assist', data);
+  });
+  state.socket.on('assistance:already_taken', () => { if (state.pendingRequest) dismissIncomingRequest(); toast('Заявку уже принял другой мастер'); });
+  state.socket.on('assistance:closed_for_others', (data) => {
+    if (state.pendingRequest?.assistId === data.assistId) dismissIncomingRequest();
+  });
+  state.socket.on('assistance:accepted', () => { if (state.activeAssist) { state.activeAssist.status = 'accepted'; renderActiveAssist(); } });
+  state.socket.on('assistance:finished', () => { toast('Заявка завершена'); fetchEarnings(); resetAssist(); });
+  state.socket.on('assistance:cancelled', (data) => { toast(data.by === 'passenger' ? 'Пассажир отменил заявку' : 'Заявка отменена'); resetAssist(); });
+  state.socket.on('assistance:passenger_location', (data) => placeMarker('passenger', data.lat, data.lon, '🧍'));
+
+  // ─── Чат ─────────────────────────────────────────────────────────────
+  state.socket.on('chat:message', (m) => appendChatMessage(m));
+  state.socket.on('chat:history', (data) => { document.getElementById('chatMessages').innerHTML = ''; data.messages.forEach(appendChatMessage); });
+}
+
+/* ════════════════════════ ВХОДЯЩИЙ ЗАКАЗ / ЗАЯВКА ════════════════════════ */
+const REQUEST_TTL_MS = 15000;
+
+function showIncomingRequest(kind, data) {
+  state.pendingRequest = { kind, ...data };
+  playBeep();
+  const card = document.getElementById('requestCard');
+  card.classList.remove('hidden');
+
+  if (kind === 'ride') {
+    card.innerHTML = `
+      <div id="timerBar"><div id="timerFill"></div></div>
+      <div class="reqBadge">НОВЫЙ ЗАКАЗ</div>
+      <div class="reqName">${data.passengerName}</div>
+      <div class="addrRow"><div class="dot pickup"></div><div class="addrText">${data.pickupAddress || (data.pickup.lat.toFixed(5) + ', ' + data.pickup.lon.toFixed(5))}</div></div>
+      <div class="addrRow"><div class="dot dest"></div><div class="addrText">${data.destinationAddress || ''}</div></div>
+      <div class="reqActions">
+        <button class="btnDecline" id="btnDeclineReq">Пропустить</button>
+        <button class="btnAccept" id="btnAcceptReq">Принять</button>
+      </div>`;
+  } else {
+    const typeLabels = { battery: 'Не заводится / аккумулятор', tire: 'Прокол колеса', fuel: 'Нет топлива', lockout: 'Заблокирован в машине', other: 'Другое' };
+    card.innerHTML = `
+      <div id="timerBar"><div id="timerFill"></div></div>
+      <div class="reqBadge" style="background:#3DCC6E;">ПОМОЩЬ НА ДОРОГЕ</div>
+      <div class="reqName">${data.passengerName}</div>
+      <div class="reqMeta">${typeLabels[data.breakdownType] || data.breakdownType || ''}${data.carMake ? ' · ' + data.carMake : ''}</div>
+      <div class="addrRow"><div class="dot pickup"></div><div class="addrText">${(data.pickup.lat.toFixed(5) + ', ' + data.pickup.lon.toFixed(5))}</div></div>
+      <div class="reqActions">
+        <button class="btnDecline" id="btnDeclineReq">Пропустить</button>
+        <button class="btnAccept" id="btnAcceptReq">Принять</button>
+      </div>`;
+  }
+
+  document.getElementById('btnAcceptReq').onclick = acceptIncomingRequest;
+  document.getElementById('btnDeclineReq').onclick = dismissIncomingRequest;
+
+  let remaining = REQUEST_TTL_MS;
+  const fill = document.getElementById('timerFill');
+  fill.style.transition = `width ${REQUEST_TTL_MS}ms linear`;
+  requestAnimationFrame(() => { fill.style.width = '0%'; });
+  state.countdownTimer = setTimeout(dismissIncomingRequest, REQUEST_TTL_MS);
+}
+
+function dismissIncomingRequest() {
+  clearTimeout(state.countdownTimer);
+  state.pendingRequest = null;
+  document.getElementById('requestCard').classList.add('hidden');
+}
+
+function acceptIncomingRequest() {
+  const req = state.pendingRequest;
+  if (!req) return;
+  clearTimeout(state.countdownTimer);
+  document.getElementById('requestCard').classList.add('hidden');
+
+  if (req.kind === 'ride') {
+    state.socket.emit('ride:accept', { rideId: req.rideId });
+    state.activeRide = {
+      id: req.rideId, status: 'accepted', name: req.passengerName,
+      pickup: { ...req.pickup, address: req.pickupAddress },
+      destination: { ...req.destination, address: req.destinationAddress },
+    };
+    state.chatContext = { contextType: 'ride', contextId: req.rideId };
+    placeMarker('passenger', req.pickup.lat, req.pickup.lon, '🧍');
+    state.map.flyTo({ center: [req.pickup.lon, req.pickup.lat], zoom: 15 });
+    renderActiveRide();
+  } else {
+    state.socket.emit('assistance:accept', { assistId: req.assistId });
+    state.activeAssist = { id: req.assistId, status: 'accepted', name: req.passengerName,
+      carMake: req.carMake, breakdownType: req.breakdownType, phone: req.phone, description: req.description,
+      pickup: req.pickup };
+    state.chatContext = { contextType: 'assist', contextId: req.assistId };
+    placeMarker('passenger', req.pickup.lat, req.pickup.lon, '🧍');
+    state.map.flyTo({ center: [req.pickup.lon, req.pickup.lat], zoom: 15 });
+    renderActiveAssist();
+  }
+  state.pendingRequest = null;
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    o.start(); o.stop(ctx.currentTime + 0.25);
+  } catch {}
+}
+
+/* ════════════════════════ НИЖНИЙ ЛИСТ АКТИВНОГО ЗАКАЗА ════════════════════════ */
+const sheet = document.getElementById('sheet');
+
+function renderActiveRide() {
+  const r = state.activeRide;
+  if (!r) { sheet.classList.add('hidden'); return; }
+  sheet.classList.remove('hidden');
+  const statusLabel = { accepted: 'Едем за пассажиром', in_progress: 'В поездке' }[r.status] || r.status;
+  const primaryBtn = r.status === 'accepted'
+    ? `<button class="btnYellow" id="btnPrimary">Начать поездку</button>`
+    : `<button class="btnYellow" id="btnPrimary">Завершить поездку</button>`;
+  sheet.innerHTML = `
+    <div class="dragHandle"></div>
+    <div class="passRow">
+      <div class="avatar">${r.name[0] || 'П'}</div>
+      <div class="passInfo"><div class="name">${r.name}</div><div class="role">${statusLabel}</div></div>
+    </div>
+    <div class="sheetAddr">📍 ${r.pickup.address || ''}</div>
+    <div class="sheetAddr">🏁 ${r.destination.address || ''}</div>
+    <div class="actionsRow">
+      <button class="btnGray" id="btnChat">💬 Чат</button>
+      ${primaryBtn}
+    </div>
+    <div class="actionsRow">
+      <button class="btnDanger" id="btnCancel" style="width:100%;">Отменить поездку</button>
+    </div>
+  `;
+  document.getElementById('btnChat').onclick = openChat;
+  document.getElementById('btnCancel').onclick = () => { state.socket.emit('ride:cancel', { rideId: r.id, reason: 'driver_cancel' }); resetRide(); };
+  document.getElementById('btnPrimary').onclick = () => {
+    if (r.status === 'accepted') { state.socket.emit('ride:start', { rideId: r.id }); }
+    else {
+      const price = prompt('Итоговая стоимость поездки, ₽', '');
+      state.socket.emit('ride:finish', { rideId: r.id, price: price ? parseFloat(price) : undefined });
+    }
+  };
+}
+
+function renderActiveAssist() {
+  const a = state.activeAssist;
+  if (!a) { sheet.classList.add('hidden'); return; }
+  sheet.classList.remove('hidden');
+  sheet.innerHTML = `
+    <div class="dragHandle"></div>
+    <div class="passRow">
+      <div class="avatar">${(a.name || 'П')[0]}</div>
+      <div class="passInfo"><div class="name">${a.name || 'Пассажир'}</div><div class="role">Выехали на помощь</div></div>
+    </div>
+    <div class="sheetAddr">🚗 ${a.carMake || ''} ${a.phone ? '· 📞 ' + a.phone : ''}</div>
+    <div class="sheetAddr">${a.description || ''}</div>
+    <div class="actionsRow">
+      <button class="btnGray" id="btnChat">💬 Чат</button>
+      <button class="btnYellow" id="btnPrimary">Завершить</button>
+    </div>
+    <div class="actionsRow">
+      <button class="btnDanger" id="btnCancel" style="width:100%;">Отменить</button>
+    </div>
+  `;
+  document.getElementById('btnChat').onclick = openChat;
+  document.getElementById('btnCancel').onclick = () => { state.socket.emit('assistance:cancel', { assistId: a.id }); resetAssist(); };
+  document.getElementById('btnPrimary').onclick = () => state.socket.emit('assistance:finish', { assistId: a.id });
+}
+
+function resetRide() {
+  state.activeRide = null; state.chatContext = null;
+  Object.values(state.markers).forEach((m) => m && m.remove());
+  state.markers.passenger = null;
+  renderActiveRide();
+}
+function resetAssist() {
+  state.activeAssist = null; state.chatContext = null;
+  if (state.markers.passenger) { state.markers.passenger.remove(); state.markers.passenger = null; }
+  renderActiveAssist();
+}
+
+/* ════════════════════════ ЧАТ ════════════════════════ */
+function openChat() {
+  document.getElementById('chatOverlay').classList.remove('hidden');
+  document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('chatPeerName').textContent = (state.activeRide?.name || state.activeAssist?.name || 'Пассажир');
+  if (state.chatContext) state.socket.emit('chat:history', state.chatContext);
+}
+document.getElementById('chatBack').onclick = () => document.getElementById('chatOverlay').classList.add('hidden');
+document.getElementById('chatSend').onclick = sendChat;
+document.getElementById('chatInput').onkeydown = (e) => { if (e.key === 'Enter') sendChat(); };
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !state.chatContext) return;
+  state.socket.emit('chat:send', { ...state.chatContext, text });
+  input.value = '';
+}
+function appendChatMessage(m) {
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (m.senderId === state.user.id ? 'mine' : 'theirs');
+  div.textContent = m.text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ════════════════════════ ВЫХОД ════════════════════════ */
+function logout() {
+  localStorage.removeItem('yanpro_driver_token'); localStorage.removeItem('yanpro_driver_user');
+  location.reload();
+}
+document.getElementById('btnMenu').onclick = () => { if (confirm('Выйти из аккаунта?')) logout(); };
+
+</script>
+</body>
+</html>

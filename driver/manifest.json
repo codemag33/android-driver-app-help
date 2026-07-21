@@ -1,0 +1,10 @@
+{
+  "name": "Yan.Pro — Водитель",
+  "short_name": "Yan.Pro Driver",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#141414",
+  "orientation": "portrait",
+  "icons": []
+}

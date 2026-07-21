@@ -2,632 +2,627 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#121212">
-<title>Яндекс Про</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Yan.Pro — Пассажир</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.css">
+<meta name="theme-color" content="#0F9D58">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/3.6.2/maplibre-gl.min.css" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#121212;--card:#1E1E1E;--card2:#2A2A2A;--green:#00C853;--blue:#2979FF;--red:#F44336;--text:#FFF;--text2:#AAA;--border:#333;--radius:12px}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;position:relative}
-.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:opacity .3s,transform .3s;z-index:10}
-.screen.hidden{opacity:0;pointer-events:none;transform:translateY(20px)}
-.screen-inner{flex:1;display:flex;flex-direction:column;padding:20px;overflow-y:auto}
+  :root{
+    --green:#0F9D58; --green-dark:#0B7A43; --bg:#F4F6F5; --card:#FFFFFF;
+    --text:#1B1F1D; --muted:#6B7570; --danger:#E24C4B; --radius:16px;
+    --shadow:0 4px 20px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0; font-family:-apple-system,Roboto,Segoe UI,sans-serif; background:var(--bg); color:var(--text); overscroll-behavior:none;}
+  #map{position:absolute; inset:0;}
+  .hidden{display:none !important;}
+  button{font-family:inherit; border:none; cursor:pointer;}
 
-#welcome .logo{font-size:48px;text-align:center;margin:30px 0 8px}
-#welcome .brand{text-align:center;font-size:22px;font-weight:700;margin-bottom:30px;color:var(--green)}
-#welcome label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block}
-#welcome input{width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:16px;outline:none}
-#welcome input:focus{border-color:var(--green)}
-.mode-btns{display:flex;gap:12px;margin-top:24px}
-.mode-btn{flex:1;padding:20px 12px;border-radius:var(--radius);border:2px solid var(--border);background:var(--card);text-align:center;cursor:pointer;transition:border-color .2s}
-.mode-btn:active{opacity:.85}
-.mode-btn .icon{font-size:36px;margin-bottom:8px}
-.mode-btn .label{font-size:15px;font-weight:700}
-.mode-btn.taxi{border-color:var(--green);color:var(--green)}
-.mode-btn.assist{border-color:var(--red);color:var(--red)}
-.btn{margin-top:16px;width:100%;padding:16px;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer}
-.btn:active{opacity:.85}
-.btn:disabled{opacity:.4;cursor:default}
-.btn-green{background:var(--green);color:#000}
-.btn-red{background:var(--red);color:#fff}
+  /* ── Экран авторизации ─────────────────────────────────────────── */
+  #authScreen{position:fixed; inset:0; background:var(--green); display:flex; flex-direction:column; justify-content:center; padding:24px; z-index:50;}
+  #authScreen h1{color:#fff; font-size:28px; margin:0 0 4px;}
+  #authScreen p.sub{color:#DFF5E8; margin:0 0 24px;}
+  .authCard{background:var(--card); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow);}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:4px;}
+  .field input,.field select{width:100%; padding:12px 14px; border:1px solid #E1E5E2; border-radius:10px; font-size:16px;}
+  .primaryBtn{width:100%; padding:14px; background:var(--green); color:#fff; border-radius:10px; font-size:16px; font-weight:600;}
+  .primaryBtn:active{background:var(--green-dark);}
+  .primaryBtn:disabled{opacity:.5;}
+  .linkBtn{background:none; color:var(--green); font-size:14px; width:100%; padding:10px; margin-top:6px;}
+  .authError{color:var(--danger); font-size:13px; margin:8px 0 0; min-height:16px;}
 
-.addr-group{position:relative;margin-bottom:12px}
-.addr-group label{font-size:12px;color:var(--text2);margin-bottom:4px;display:block}
-.addr-group input{width:100%;padding:12px 14px 12px 36px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;outline:none}
-.addr-group input:focus{border-color:var(--blue)}
-.addr-group .icon{position:absolute;left:10px;bottom:12px;color:var(--text2);font-size:16px}
-.addr-suggestions{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:50;display:none}
- .addr-suggestions.show{display:block}
- .addr-suggestions.fixed{position:fixed;z-index:100}
- .addr-suggestions .item{padding:10px 14px;font-size:14px;border-bottom:1px solid var(--border);cursor:pointer}
- .addr-suggestions .item:active{background:var(--card2)}
- .addr-suggestions .item small{color:var(--text2);font-size:12px}
-.location-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;margin-bottom:16px;cursor:pointer}
-.location-btn:active{background:var(--border)}
-.location-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
-.back-link{margin-top:16px;text-align:center;font-size:14px;color:var(--text2);cursor:pointer}
-.back-link:active{opacity:.7}
+  /* ── Верхняя панель ─────────────────────────────────────────────── */
+  #topBar{position:fixed; top:0; left:0; right:0; padding:10px 12px; display:flex; gap:8px; z-index:20;}
+  .roundBtn{width:44px; height:44px; border-radius:50%; background:#fff; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;}
+  #searchInput{flex:1; padding:0 14px; border-radius:22px; border:none; background:#fff; box-shadow:var(--shadow); font-size:15px;}
+  #suggestions{position:fixed; top:60px; left:12px; right:12px; background:#fff; border-radius:12px; box-shadow:var(--shadow); z-index:20; max-height:40vh; overflow-y:auto;}
+  #suggestions div{padding:12px 14px; border-bottom:1px solid #F0F0F0; font-size:14px;}
+  #suggestions div:last-child{border-bottom:none;}
 
-.field{margin-bottom:14px}
-.field label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block}
-.field input,.field textarea{width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:15px;outline:none;font-family:inherit}
-.field input:focus,.field textarea:focus{border-color:var(--red)}
-.type-toggle{display:flex;gap:10px}
-.type-btn{flex:1;padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:15px;font-weight:600;text-align:center;cursor:pointer;transition:border-color .2s}
-.type-btn.sel{border-color:var(--red);color:var(--red);background:rgba(244,67,54,.1)}
+  /* ── Нижний лист ────────────────────────────────────────────────── */
+  #sheet{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-radius:20px 20px 0 0; box-shadow:0 -4px 24px rgba(0,0,0,.15); padding:14px 16px calc(16px + env(safe-area-inset-bottom)); z-index:30; max-height:70vh; overflow-y:auto;}
+  .dragHandle{width:36px; height:4px; background:#DDD; border-radius:2px; margin:0 auto 12px;}
+  .modeTabs{display:flex; gap:8px; margin-bottom:14px;}
+  .modeTab{flex:1; padding:10px; text-align:center; border-radius:10px; background:#F0F2F1; color:var(--muted); font-size:14px; font-weight:600;}
+  .modeTab.active{background:var(--green); color:#fff;}
+  .addrRow{display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid #F0F0F0;}
+  .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .dot.pickup{background:var(--green);}
+  .dot.dest{background:var(--danger);}
+  .addrRow .addrText{flex:1; font-size:15px;}
+  .addrRow .addrText.placeholder{color:var(--muted);}
+  .hint{font-size:12px; color:var(--muted); margin:6px 0 12px; line-height:1.4;}
+  select,input[type=tel],textarea{width:100%; padding:12px 14px; border:1px solid #E1E5E2; border-radius:10px; font-size:15px; margin-bottom:10px;}
+  textarea{resize:none; height:60px;}
 
-#mapScreen{z-index:1}
-#mapContainer{position:absolute;inset:0}
-.status-bar{position:absolute;top:0;left:0;right:0;padding:12px 16px;background:linear-gradient(180deg,rgba(18,18,18,.95),rgba(18,18,18,0));z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.status-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card);border-radius:20px;font-size:14px;font-weight:600}
-.status-chip .dot{width:10px;height:10px;border-radius:50%}
-.status-chip .dot.waiting{background:var(--blue);animation:pulse 1.5s infinite}
-.status-chip .dot.driving{background:var(--green)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.route-info{padding:8px 14px;background:var(--card);border-radius:20px;font-size:14px;font-weight:600;display:none}
-.route-info .km{color:var(--green)}
-.route-info .min{color:var(--blue)}
-.cancel-btn{position:absolute;bottom:24px;left:16px;padding:12px 20px;background:rgba(30,30,30,.9);border:1px solid var(--red);border-radius:var(--radius);color:var(--red);font-size:14px;font-weight:600;z-index:20;cursor:pointer;backdrop-filter:blur(8px)}
-.cancel-btn:active{background:rgba(244,67,54,.2)}
-.chat-fab{position:absolute;bottom:24px;right:16px;width:56px;height:56px;border-radius:50%;background:var(--blue);border:none;color:#fff;font-size:24px;box-shadow:0 4px 12px rgba(41,121,255,.4);z-index:20;cursor:pointer;display:none}
-.chat-fab:active{transform:scale(.95)}
-.chat-fab .badge{position:absolute;top:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#F44336;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .statusCard{text-align:center; padding:8px 0 16px;}
+  .statusCard .big{font-size:17px; font-weight:600; margin-bottom:4px;}
+  .statusCard .small{font-size:13px; color:var(--muted);}
+  .driverRow{display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid #F0F0F0; border-bottom:1px solid #F0F0F0; margin:10px 0;}
+  .avatar{width:44px; height:44px; border-radius:50%; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; flex-shrink:0;}
+  .driverInfo .name{font-weight:600; font-size:15px;}
+  .driverInfo .role{font-size:12px; color:var(--muted);}
+  .actionsRow{display:flex; gap:10px; margin-top:10px;}
+  .actionsRow button{flex:1; padding:13px; border-radius:10px; font-size:14px; font-weight:600;}
+  .btnGreen{background:var(--green); color:#fff;}
+  .btnGray{background:#F0F2F1; color:var(--text);}
+  .btnDanger{background:#FDEDED; color:var(--danger);}
 
-#chatModal{position:absolute;inset:0;background:var(--bg);z-index:100;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s}
-#chatModal.open{transform:translateY(0)}
-.chat-header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border)}
-.chat-header .back{background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px}
-.chat-header .title{font-size:16px;font-weight:600;flex:1}
-.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
-.chat-msg{max-width:80%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4}
-.chat-msg.driver{align-self:flex-start;background:var(--card2);border-bottom-left-radius:4px}
-.chat-msg.passenger{align-self:flex-end;background:var(--blue);border-bottom-right-radius:4px}
-.chat-msg .from{font-size:11px;color:var(--text2);margin-bottom:2px}
-.chat-input-bar{display:flex;gap:8px;padding:12px 16px;background:var(--card);border-top:1px solid var(--border)}
-.chat-input-bar input{flex:1;padding:12px 14px;background:var(--card2);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:15px;outline:none}
-.chat-input-bar input:focus{border-color:var(--blue)}
-.chat-input-bar button{padding:12px 20px;background:var(--blue);border:none;border-radius:20px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
-.chat-input-bar button:active{opacity:.85}
+  /* ── Чат ────────────────────────────────────────────────────────── */
+  #chatOverlay{position:fixed; inset:0; background:var(--card); z-index:60; display:flex; flex-direction:column;}
+  #chatHeader{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #F0F0F0;}
+  #chatHeader .backBtn{font-size:20px; background:none; padding:4px;}
+  #chatMessages{flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:8px;}
+  .msg{max-width:75%; padding:10px 13px; border-radius:14px; font-size:14px; line-height:1.35;}
+  .msg.mine{align-self:flex-end; background:var(--green); color:#fff; border-bottom-right-radius:4px;}
+  .msg.theirs{align-self:flex-start; background:#F0F2F1; color:var(--text); border-bottom-left-radius:4px;}
+  #chatInputRow{display:flex; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid #F0F0F0;}
+  #chatInputRow input{flex:1; padding:12px 14px; border-radius:20px; border:1px solid #E1E5E2; font-size:15px;}
+  #chatInputRow button{width:44px; height:44px; border-radius:50%; background:var(--green); color:#fff; font-size:18px;}
 
-.overlay{position:absolute;inset:0;background:rgba(18,18,18,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;display:none}
-.overlay .icon{font-size:64px}
-.overlay .text{font-size:20px;font-weight:700}
-.overlay .sub{font-size:14px;color:var(--text2);text-align:center;padding:0 20px}
-.overlay .btn{margin-top:24px;padding:14px 40px;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer}
-.info-card{position:absolute;bottom:80px;left:16px;right:16px;background:var(--card);border-radius:var(--radius);padding:14px;z-index:20;display:none}
-.info-card .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
-.info-card .label{color:var(--text2)}
-.info-card .value{font-weight:600}
+  #toast{position:fixed; left:50%; bottom:100px; transform:translateX(-50%); background:#1B1F1D; color:#fff; padding:10px 18px; border-radius:22px; font-size:13px; z-index:80; opacity:0; transition:opacity .25s; pointer-events:none;}
+  #toast.show{opacity:1;}
 
-.map-label{background:var(--card);border:2px solid var(--green);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)}
-.map-label.b{border-color:var(--blue)}
+  .pinMarker{width:28px; height:28px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.3);}
+  .pinMarker.pickup{background:var(--green);}
+  .pinMarker.dest{background:var(--danger);}
+  .driverMarker{width:34px; height:34px; border-radius:50%; background:#fff; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; font-size:18px;}
 </style>
 </head>
 <body>
 
-<div id="welcome" class="screen">
-  <div class="screen-inner">
-    <div class="logo">🚗</div>
-    <div class="brand">Яндекс Про</div>
-    <label for="nameInput">Как вас зовут?</label>
-    <input type="text" id="nameInput" placeholder="Имя" autocomplete="name">
-    <div class="mode-btns">
-      <div class="mode-btn taxi" id="modeTaxi">
-        <div class="icon">🚕</div>
-        <div class="label">Вызвать такси</div>
-      </div>
-      <div class="mode-btn assist" id="modeAssist">
-        <div class="icon">🔧</div>
-        <div class="label">Помощь на дороге</div>
-      </div>
+<!-- ═══════════════ ЭКРАН ВХОДА ═══════════════ -->
+<div id="authScreen">
+  <h1>Yan.Pro</h1>
+  <p class="sub">Такси и помощь на дороге</p>
+  <div class="authCard">
+    <div id="loginForm">
+      <div class="field"><label>Логин</label><input id="loginLogin" autocomplete="username"></div>
+      <div class="field"><label>Пароль</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+      <button class="primaryBtn" id="btnLogin">Войти</button>
+      <button class="linkBtn" id="toRegister">Нет аккаунта? Зарегистрироваться</button>
     </div>
+    <div id="registerForm" class="hidden">
+      <div class="field"><label>Имя</label><input id="regName"></div>
+      <div class="field"><label>Логин</label><input id="regLogin" autocomplete="username"></div>
+      <div class="field"><label>Телефон</label><input id="regPhone" type="tel" placeholder="+7..."></div>
+      <div class="field"><label>Пароль (мин. 6 символов)</label><input id="regPass" type="password" autocomplete="new-password"></div>
+      <button class="primaryBtn" id="btnRegister">Зарегистрироваться</button>
+      <button class="linkBtn" id="toLogin">Уже есть аккаунт? Войти</button>
+    </div>
+    <div class="authError" id="authError"></div>
+  </div>
+  <button class="linkBtn" id="btnServerSettings" style="color:#DFF5E8; margin-top:16px;">⚙ Адрес сервера</button>
+</div>
+
+<!-- ═══════════════ КАРТА / ОСНОВНОЕ ПРИЛОЖЕНИЕ ═══════════════ -->
+<div id="map"></div>
+
+<div id="topBar" class="hidden">
+  <button class="roundBtn" id="btnMenu">☰</button>
+  <input id="searchInput" placeholder="Куда едем?">
+  <button class="roundBtn" id="btnLocate">◎</button>
+</div>
+<div id="suggestions" class="hidden"></div>
+
+<div id="sheet" class="hidden"></div>
+<div id="toast"></div>
+
+<!-- ═══════════════ ЧАТ ═══════════════ -->
+<div id="chatOverlay" class="hidden">
+  <div id="chatHeader">
+    <button class="backBtn" id="chatBack">←</button>
+    <div class="driverInfo"><div class="name" id="chatPeerName">Собеседник</div></div>
+  </div>
+  <div id="chatMessages"></div>
+  <div id="chatInputRow">
+    <input id="chatInput" placeholder="Сообщение...">
+    <button id="chatSend">➤</button>
   </div>
 </div>
 
-<div id="request" class="screen hidden">
-  <div class="screen-inner">
-    <div style="font-size:20px;font-weight:700;margin-bottom:16px">Куда ехать?</div>
-    <div class="location-btn" id="locationBtn">
-      <span class="dot"></span>
-      <span id="pickupText">Определяем местоположение...</span>
-    </div>
-    <div class="addr-group">
-      <span class="icon">📍</span>
-      <label>Откуда</label>
-      <input type="text" id="pickupInput" placeholder="Нажмите для поиска адреса">
-      <div class="addr-suggestions" id="pickupSuggestions"></div>
-    </div>
-    <div class="addr-group">
-      <span class="icon">🏁</span>
-      <label>Куда</label>
-      <input type="text" id="destInput" placeholder="Адрес назначения">
-      <div class="addr-suggestions" id="destSuggestions"></div>
-    </div>
-    <button class="btn btn-green" id="requestBtn" disabled>Вызвать машину</button>
-    <div class="back-link" id="taxiBack">← Назад</div>
-  </div>
-</div>
-
-<div id="assistForm" class="screen hidden">
-  <div class="screen-inner">
-    <div style="font-size:20px;font-weight:700;margin-bottom:6px">Помощь на дороге</div>
-    <div style="font-size:14px;color:var(--text2);margin-bottom:16px">Укажите данные автомобиля и тип неисправности</div>
-    <div class="field"><label for="phoneInput">Телефон</label><input type="tel" id="phoneInput" placeholder="+7 (999) 123-45-67" autocomplete="tel"></div>
-    <div class="field"><label for="carMakeInput">Марка и модель</label><input type="text" id="carMakeInput" placeholder="Например: Toyota Camry"></div>
-    <div class="field">
-      <label>Тип неисправности</label>
-      <div class="type-toggle">
-        <div class="type-btn" id="typeElec">Электрическая</div>
-        <div class="type-btn" id="typeMech">Механическая</div>
-      </div>
-    </div>
-    <div class="field"><label for="descInput">Описание неисправности</label><textarea id="descInput" rows="3" placeholder="Опишите проблему..."></textarea></div>
-    <div class="location-btn" id="assistLocationBtn" style="margin-bottom:12px;margin-top:4px">
-      <span class="dot" style="background:var(--blue)"></span>
-      <span id="assistPickupText">Нажмите для определения местоположения</span>
-    </div>
-    <div class="addr-group">
-      <span class="icon">📍</span>
-      <label>Где вы находитесь</label>
-      <input type="text" id="assistPickupInput" placeholder="Нажмите для поиска адреса">
-      <div class="addr-suggestions" id="assistPickupSuggestions"></div>
-    </div>
-    <div id="mechCount" style="display:none;text-align:center;padding:10px;margin-top:10px;background:var(--card2);border-radius:var(--radius);font-size:14px;color:var(--text2)">🔍 Мастеров в сети: <span id="mechCountVal" style="color:var(--green);font-weight:700">0</span></div>
-    <button class="btn btn-red" id="assistSubmit" disabled>Найти мастера</button>
-    <div class="back-link" id="assistBack">← Назад</div>
-  </div>
-</div>
-
-<div id="mapScreen" class="screen hidden">
-  <div id="mapContainer"></div>
-  <div class="status-bar">
-    <div class="status-chip" id="statusChip">
-      <span class="dot waiting"></span>
-      <span id="statusText">Ищем водителя...</span>
-    </div>
-    <div class="route-info" id="routeInfo"><span class="km" id="routeKm"></span> · <span class="min" id="routeMin"></span></div>
-  </div>
-  <div class="info-card" id="infoCard"></div>
-  <button class="cancel-btn" id="cancelBtn">Отменить</button>
-  <button class="chat-fab" id="chatFab">💬<span class="badge" id="chatBadge" style="display:none">0</span></button>
-  <div id="chatModal">
-    <div class="chat-header">
-      <button class="back" id="chatBack">←</button>
-      <span class="title" id="chatTitle">Чат с водителем</span>
-    </div>
-    <div class="chat-messages" id="chatMessages"></div>
-    <div class="chat-input-bar">
-      <input type="text" id="chatInput" placeholder="Сообщение...">
-      <button id="chatSendBtn">→</button>
-    </div>
-  </div>
-  <div class="overlay" id="finishedOverlay">
-    <div class="icon">✅</div>
-    <div class="text" id="finText">Поездка завершена</div>
-    <div class="sub" id="finSub">Спасибо за поездку!</div>
-    <button class="btn btn-green" id="newRideBtn">Новая поездка</button>
-  </div>
-</div>
-
-<script src="https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.js"></script>
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-(function(){
 'use strict';
 
-const SERVER=location.origin,GEOCODER='https://nominatim.openstreetmap.org',OSRM='https://router.project-osrm.org',MAP_STYLE='https://tiles.openfreemap.org/styles/liberty';
-let socket=null,map=null,mode=null,name='',rideId=null,assistId=null,myLat=null,myLon=null,destLat=null,destLon=null,driverLat=null,driverLon=null,watchId=null,unread=0,chatOpen=false;
-let pMarker=null,dMarker=null,rideRouteSrc=null,driverRouteSrc=null,aMarker=null,bMarker=null,driverMarkers={},mapReady=false;
-
-const $=id=>document.getElementById(id);
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));$(id).classList.remove('hidden')}
-function setStatus(t,txt){$('statusChip').querySelector('.dot').className='dot '+t;$('statusText').textContent=txt}
-
-// ═══ Welcome ════════════════════════════════════════════════════
-let geoAsked=false; // был ли хоть раз запрос GPS
-let geoInterval=null;
-
-$('modeTaxi').onclick=()=>{
-  if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='taxi';showScreen('request');startAutoGeo();
+/* ════════════════════════ КОНФИГ / СОСТОЯНИЕ ════════════════════════ */
+const ORENBURG = { lat: 51.7727, lon: 55.0988 };
+const state = {
+  serverUrl: localStorage.getItem('yanpro_server_url') || 'https://your-server.example',
+  token: localStorage.getItem('yanpro_token') || null,
+  user: JSON.parse(localStorage.getItem('yanpro_user') || 'null'),
+  socket: null,
+  map: null,
+  markers: { pickup: null, dest: null, driver: null },
+  pickup: null,       // {lat, lon, address}
+  destination: null,  // {lat, lon, address}
+  mode: 'ride',        // 'ride' | 'assist'
+  activeRide: null,
+  activeAssist: null,
+  chatContext: null,   // {contextType, contextId}
+  geoWatchId: null,
 };
-$('modeAssist').onclick=()=>{
-  if(!$('nameInput').value.trim()){$('nameInput').focus();return}
-  name=$('nameInput').value.trim();mode='assist';showScreen('assistForm');assistStartGeo();loadMechanicCount();
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ════════════════════════ REST API ════════════════════════ */
+async function api(path, method = 'GET', body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const res = await fetch(state.serverUrl + path, {
+    method, headers, body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `http_${res.status}`);
+  return data;
+}
+
+/* ════════════════════════ АВТОРИЗАЦИЯ ════════════════════════ */
+const authError = document.getElementById('authError');
+document.getElementById('toRegister').onclick = () => {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('registerForm').classList.remove('hidden');
+  authError.textContent = '';
 };
-$('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('modeTaxi').click()});
-
-// ═══ Auto GPS + кнопка повтора ═══════════════════════════
-function startAutoGeo(){
-  $('pickupText').textContent='Определяем местоположение...';
-  $('locationBtn').querySelector('.dot').style.background='var(--blue)';
-  tryGps();
-  // Через 8с если GPS молчит — меняем текст на кнопку
-  clearTimeout(geoInterval);
-  geoInterval=setTimeout(()=>{
-    if(!myLat||!myLon){
-      $('pickupText').textContent='📍 Нажмите для определения';
-      $('locationBtn').querySelector('.dot').style.background='var(--text2)';
-    }
-  },8000);
-}
-
-function tryGps(){
-  if(!navigator.geolocation){$('pickupText').textContent='📍 Введите адрес вручную';return}
-  geoAsked=true;
-  navigator.geolocation.getCurrentPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    clearTimeout(geoInterval);
-    rGeo(myLat,myLon).then(a=>{
-      $('pickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
-      $('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
-      $('locationBtn').querySelector('.dot').style.background='var(--green)';
-      updBtn();
-    });
-    startGeo();
-  },()=>{
-    // GPS не ответил — кнопка уже покажет «Нажмите для определения»
-  },{enableHighAccuracy:true,timeout:6000});
-}
-
-// Клик по кнопке — повтор GPS
-$('locationBtn').onclick=()=>{
-  if(myLat&&myLon)return; // уже есть
-  tryGps();
+document.getElementById('toLogin').onclick = () => {
+  document.getElementById('registerForm').classList.add('hidden');
+  document.getElementById('loginForm').classList.remove('hidden');
+  authError.textContent = '';
 };
-async function rGeo(lat,lon){try{const r=await fetch(`${GEOCODER}/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ru`);const d=await r.json();if(!d.display_name)return'';const parts=d.display_name.split(',');return parts.slice(0,3).join(', ')}catch(e){return''}}
+document.getElementById('btnServerSettings').onclick = () => {
+  const url = prompt('Адрес сервера (например, https://taxi.example.com)', state.serverUrl);
+  if (url) { state.serverUrl = url.trim().replace(/\/$/, ''); localStorage.setItem('yanpro_server_url', state.serverUrl); toast('Адрес сервера сохранён'); }
+};
 
-// ═══ Suggest helpers (position:fixed to avoid scroll-clipping) ═══
-function hideSuggestions(el){if(el.length){el.forEach(hideSuggestions);return}el.style.display='none';el.innerHTML=''}
-function positionSuggestions(input,list){const r=input.getBoundingClientRect();list.style.top=(r.bottom+4)+'px';list.style.left=r.left+'px';list.style.width=r.width+'px';list.classList.add('fixed')}
-document.addEventListener('scroll',()=>hideSuggestions(document.querySelectorAll('.addr-suggestions')),true);
+document.getElementById('btnLogin').onclick = async () => {
+  const login = document.getElementById('loginLogin').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!login || !password) { authError.textContent = 'Заполните все поля'; return; }
+  try {
+    const data = await api('/api/auth/login', 'POST', { login, password });
+    onAuthSuccess(data);
+  } catch (e) { authError.textContent = 'Неверный логин или пароль'; }
+};
 
-// ═══ Destination search ════════════════════════════════════════
-let st=null;
-$('destInput').addEventListener('input',()=>{clearTimeout(st);const q=$('destInput').value.trim();if(q.length<3){hideSuggestions($('destSuggestions'));return}st=setTimeout(()=>searchAddr(q),400)});
-async function searchAddr(q){
-  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('destSuggestions');b.innerHTML='';if(!d.length){hideSuggestions(b);return}
-  b.style.display='block';positionSuggestions($('destInput'),b);
-  d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{destLat=parseFloat(i.lat);destLon=parseFloat(i.lon);$('destInput').value=i.display_name.split(',').slice(0,3).join(', ');hideSuggestions(b);updBtn()};b.appendChild(div)})}catch(e){}
-}
-
-// ═══ Pickup search (manual fallback) ════════════════════════
-let stPickup=null;
-$('pickupInput').addEventListener('focus',()=>{$('pickupInput').select()});
-$('pickupInput').addEventListener('input',()=>{
-  clearTimeout(stPickup);const q=$('pickupInput').value.trim();
-  if(q.length<3){hideSuggestions($('pickupSuggestions'));return}
-  stPickup=setTimeout(()=>searchPickup(q),400);
-});
-async function searchPickup(q){
-  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('pickupSuggestions');b.innerHTML='';if(!d.length){hideSuggestions(b);return}
-  b.style.display='block';positionSuggestions($('pickupInput'),b);
-  d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('pickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('pickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');hideSuggestions(b);updBtn()};b.appendChild(div)})}catch(e){}
-}
-function updBtn(){$('requestBtn').disabled=!(destLat&&destLon)}
-
-// ═══ Taxi request ═══
-$('taxiBack').onclick=()=>showScreen('welcome');
-$('requestBtn').onclick=()=>{
-  if(!destLat||!destLon)return;
-  if(!myLat||!myLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01){
-    $('requestBtn').textContent='Определяем...';
-    fetchIpGeo().then(()=>{
-      if(myLat&&myLon&&Math.abs(myLat)>=0.01&&Math.abs(myLon)>=0.01){
-        rGeo(myLat,myLon).then(a=>{$('pickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;$('pickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`});
-        $('requestBtn').textContent='Вызвать машину';
-        connectSocket();showScreen('mapScreen');initMap();
-      }else{
-        $('requestBtn').textContent='Вызвать машину';
-        $('pickupText').textContent='⚠ Укажите адрес через поиск';
-        $('pickupInput').focus();
-      }
-    });
-    return;
+document.getElementById('btnRegister').onclick = async () => {
+  const name = document.getElementById('regName').value.trim();
+  const login = document.getElementById('regLogin').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPass').value;
+  if (!name || !login || password.length < 6) { authError.textContent = 'Проверьте поля (пароль от 6 символов)'; return; }
+  try {
+    const data = await api('/api/auth/register', 'POST', { name, login, phone, password, role: 'passenger' });
+    onAuthSuccess(data);
+  } catch (e) {
+    authError.textContent = e.message === 'login_taken' ? 'Такой логин уже занят' : 'Ошибка регистрации';
   }
-  connectSocket();showScreen('mapScreen');initMap();
 };
 
-// ═══ Assistance form ═══
-$('assistBack').onclick=()=>showScreen('welcome');
-let bType=null;
-$('typeElec').onclick=()=>{bType='electrical';$('typeElec').classList.add('sel');$('typeMech').classList.remove('sel');updAssistBtn()};
-$('typeMech').onclick=()=>{bType='mechanical';$('typeMech').classList.add('sel');$('typeElec').classList.remove('sel');updAssistBtn()};
-['phoneInput','carMakeInput','descInput'].forEach(id=>$(id).addEventListener('input',updAssistBtn));
-function updAssistBtn(){$('assistSubmit').disabled=!($('phoneInput').value.trim()&&$('carMakeInput').value.trim()&&bType&&myLat&&myLon&&Math.abs(myLat)>=0.01&&Math.abs(myLon)>=0.01)}
-// ── Assistance auto GPS ──
-function assistStartGeo(){
-  $('assistPickupText').textContent='Определяем местоположение...';
-  $('assistLocationBtn').querySelector('.dot').style.background='var(--blue)';
-  if(!navigator.geolocation){$('assistPickupText').textContent='📍 Введите адрес вручную';return}
-  navigator.geolocation.getCurrentPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    rGeo(myLat,myLon).then(a=>{
-      $('assistPickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
-      $('assistPickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
-      $('assistLocationBtn').querySelector('.dot').style.background='var(--green)';
-      updAssistBtn();
-    });
-  },()=>{$('assistPickupText').textContent='📍 Нажмите для определения'},{enableHighAccuracy:true,timeout:6000});
+function onAuthSuccess(data) {
+  state.token = data.token;
+  state.user = data.user;
+  localStorage.setItem('yanpro_token', state.token);
+  localStorage.setItem('yanpro_user', JSON.stringify(state.user));
+  startApp();
 }
-// ── Assistance location button ──
-$('assistLocationBtn').onclick=()=>{
-  if(myLat&&myLon&&Math.abs(myLat)>=0.01)return;
-  if(!navigator.geolocation){$('assistPickupText').textContent='📍 Введите адрес вручную';return}
-  $('assistPickupText').textContent='Определяем...';
-  navigator.geolocation.getCurrentPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    rGeo(myLat,myLon).then(a=>{
-      $('assistPickupInput').value=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
-      $('assistPickupText').textContent=a||`${myLat.toFixed(5)},${myLon.toFixed(5)}`;
-      $('assistLocationBtn').querySelector('.dot').style.background='var(--green)';
-      updAssistBtn();
-    });
-  },()=>{$('assistPickupText').textContent='📍 Нажмите для определения'},{enableHighAccuracy:true,timeout:6000});
-};
-// ── Assistance address search ──
-let stAssistPickup=null;
-$('assistPickupInput').addEventListener('focus',()=>{$('assistPickupInput').select()});
-$('assistPickupInput').addEventListener('input',()=>{
-  clearTimeout(stAssistPickup);const q=$('assistPickupInput').value.trim();
-  if(q.length<3){hideSuggestions($('assistPickupSuggestions'));return}
-  stAssistPickup=setTimeout(()=>searchAssistPickup(q),400);
-});
-async function searchAssistPickup(q){
-  try{const r=await fetch(`${GEOCODER}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ru`);const d=await r.json();const b=$('assistPickupSuggestions');b.innerHTML='';
-  if(!d.length){hideSuggestions(b);return}
-  b.style.display='block';positionSuggestions($('assistPickupInput'),b);
-  d.forEach(i=>{const div=document.createElement('div');div.className='item';div.innerHTML=`<div>${i.display_name.split(',').slice(0,3).join(', ')}</div><small>${i.display_name.split(',').slice(3,6).join(', ')}</small>`;
-  div.onclick=()=>{myLat=parseFloat(i.lat);myLon=parseFloat(i.lon);$('assistPickupInput').value=i.display_name.split(',').slice(0,3).join(', ');$('assistPickupText').textContent=i.display_name.split(',').slice(0,3).join(', ');hideSuggestions(b);updAssistBtn()};b.appendChild(div)})}catch(e){}
+
+/* ════════════════════════ СТАРТ ПРИЛОЖЕНИЯ ════════════════════════ */
+function startApp() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('topBar').classList.remove('hidden');
+  if (!state.map) initMap();
+  connectSocket();
+  renderSheetIdle();
+  locateMe(true);
 }
-$('assistSubmit').onclick=()=>{
-  if(!$('phoneInput').value.trim()||!$('carMakeInput').value.trim()||!bType)return;
-  if(!myLat||!myLon||Math.abs(myLat)<0.01||Math.abs(myLon)<0.01){
-    $('assistSubmit').textContent='Определяем...';
-    fetchIpGeo().then(()=>{
-      if(myLat&&myLon&&Math.abs(myLat)>=0.01&&Math.abs(myLon)>=0.01){
-        $('assistSubmit').textContent='Найти мастера';
-        connectSocketAssist();showScreen('mapScreen');initMap();
-      }else{
-        $('assistSubmit').textContent='Найти мастера';
-        $('assistPickupText').textContent='⚠ Укажите адрес через поиск';
-      }
+
+if (state.token && state.user) startApp();
+
+/* ════════════════════════ КАРТА ════════════════════════ */
+function initMap() {
+  state.map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [ORENBURG.lon, ORENBURG.lat],
+    zoom: 13,
+  });
+  state.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+
+  // Долгое нажатие / клик по карте — ручная установка точки (всегда доступно,
+  // не только как запасной вариант при сбое геолокации).
+  state.map.on('click', (e) => {
+    if (state.activeRide || state.activeAssist) return; // во время активной поездки клики по карте не меняют точки
+    const { lng, lat } = e.lngLat;
+    if (!state.pickup) setPickup(lat, lng);
+    else setDestination(lat, lng);
+  });
+}
+
+function placeMarker(kind, lat, lon) {
+  if (state.markers[kind]) state.markers[kind].remove();
+  const el = document.createElement('div');
+  el.className = kind === 'driver' ? 'driverMarker' : `pinMarker ${kind}`;
+  if (kind === 'driver') el.textContent = '🚗';
+  const draggable = kind !== 'driver' && !state.activeRide && !state.activeAssist;
+  const marker = new maplibregl.Marker({ element: el, draggable })
+    .setLngLat([lon, lat]).addTo(state.map);
+  if (draggable) {
+    marker.on('dragend', () => {
+      const p = marker.getLngLat();
+      if (kind === 'pickup') setPickup(p.lat, p.lng, true);
+      else setDestination(p.lat, p.lng, true);
     });
-    return;
   }
-  connectSocketAssist();showScreen('mapScreen');initMap();
-};
-
-// ═══ IP geolocation fallback ══════════════════════════════
-async function fetchIpGeo(){
-  try{const r=await Promise.race([
-    fetch('https://ipapi.co/json/'),
-    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
-  ]);const d=await r.json();
-    if(d.latitude&&d.longitude){myLat=d.latitude;myLon=d.longitude}
-  }catch(e){}
+  state.markers[kind] = marker;
 }
 
-// ═══ Map ═══════════════════════════════════════════════════════
-function initMap(){
-  if(map)return;
-  map=new maplibregl.Map({container:'mapContainer',style:MAP_STYLE,center:[myLon||37.6,myLat||55.7],zoom:15,attributionControl:false});
-  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+/* ════════════════════════ ГЕОЛОКАЦИЯ С ГРАДАЦИЕЙ FALLBACK'ОВ ═══════════════
+   1) GPS/браузерная геолокация с таймаутом
+   2) если недоступна/не отвечает — просто оставляем карту там, где она есть,
+      и пользователь ставит точку сам (drag или клик) — это ОСНОВНОЙ способ
+      на старых устройствах/планшетах, а не "аварийный".                    */
+function getPositionWithTimeout(timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('no_geolocation_api'));
+    const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { clearTimeout(timer); resolve(pos); },
+      (err) => { clearTimeout(timer); reject(err); },
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30000 }
+    );
+  });
+}
 
-    map.on('load',()=>{
-    mapReady=true;
+async function locateMe(silent) {
+  try {
+    const pos = await getPositionWithTimeout();
+    const { latitude: lat, longitude: lon } = pos.coords;
+    state.map.flyTo({ center: [lon, lat], zoom: 15 });
+    if (!state.pickup) setPickup(lat, lon);
+    else if (!silent) toast('Местоположение обновлено');
+  } catch (e) {
+    if (!silent) toast('Не удалось определить местоположение — поставьте точку на карте вручную');
+    // Карта остаётся там, где была (или на Оренбурге по умолчанию) — пользователь ставит пин сам.
+  }
+}
+document.getElementById('btnLocate').onclick = () => locateMe(false);
 
-    pMarker=new maplibregl.Marker({element:dotEl('#2979FF')}).setLngLat([myLon||37.6,myLat||55.7]).addTo(map);
-    dMarker=new maplibregl.Marker({element:dotEl('#00C853')});dMarker.getElement().style.display='none';dMarker.setLngLat([0,0]).addTo(map);
+async function reverseGeocode(lat, lon) {
+  try {
+    const data = await api(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
+    return data.address;
+  } catch { return `${lat.toFixed(5)}, ${lon.toFixed(5)}`; }
+}
 
-    map.addSource('ride-route',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[]}}});
-    map.addLayer({id:'ride-route-line',type:'line',source:'ride-route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#2979FF','line-width':6,'line-opacity':.9}});
-    rideRouteSrc=map.getSource('ride-route');
+async function setPickup(lat, lon, skipReverse) {
+  state.pickup = { lat, lon, address: skipReverse ? state.pickup?.address : null };
+  placeMarker('pickup', lat, lon);
+  renderSheetIdle();
+  const addr = await reverseGeocode(lat, lon);
+  state.pickup.address = addr;
+  renderSheetIdle();
+}
+async function setDestination(lat, lon) {
+  state.destination = { lat, lon, address: null };
+  placeMarker('dest', lat, lon);
+  renderSheetIdle();
+  const addr = await reverseGeocode(lat, lon);
+  state.destination.address = addr;
+  renderSheetIdle();
+}
 
-    map.addSource('driver-route',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[]}}});
-    map.addLayer({id:'driver-route-line',type:'line',source:'driver-route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#00C853','line-width':4,'line-opacity':.6,'line-dasharray':[2,2]}});
-    driverRouteSrc=map.getSource('driver-route');
-
-    if(mode==='taxi'&&myLat&&myLon&&destLat&&destLon){
-      rGeo(myLat,myLon).then(addr=>{
-        addPointLabel('A',myLon,myLat,'📍 '+(addr||'Посадка'),false);
+/* ════════════════════════ ПОИСК АДРЕСА (через серверный прокси) ═══════════ */
+let searchDebounce;
+document.getElementById('searchInput').oninput = (e) => {
+  clearTimeout(searchDebounce);
+  const q = e.target.value.trim();
+  const box = document.getElementById('suggestions');
+  if (q.length < 3) { box.classList.add('hidden'); return; }
+  searchDebounce = setTimeout(async () => {
+    try {
+      const data = await api(`/api/geocode?q=${encodeURIComponent(q)}`);
+      box.innerHTML = '';
+      if (!data.results.length) { box.innerHTML = '<div>Ничего не найдено — можно поставить точку на карте вручную</div>'; }
+      data.results.forEach((r) => {
+        const div = document.createElement('div');
+        div.textContent = r.address;
+        div.onclick = () => {
+          box.classList.add('hidden');
+          document.getElementById('searchInput').value = '';
+          state.map.flyTo({ center: [r.lon, r.lat], zoom: 15 });
+          if (!state.pickup) { setPickup(r.lat, r.lon); }
+          else { state.destination = { lat: r.lat, lon: r.lon, address: r.address }; placeMarker('dest', r.lat, r.lon); renderSheetIdle(); }
+        };
+        box.appendChild(div);
       });
-      rGeo(destLat,destLon).then(addr=>{
-        addPointLabel('B',destLon,destLat,'🏁 '+(addr||'Назначение'),true);
-      });
-      drawRideRoute(myLat,myLon,destLat,destLon);
-    }
-    if(mode==='assist'&&myLat&&myLon){
-      rGeo(myLat,myLon).then(addr=>{
-        addPointLabel('A',myLon,myLat,'🔧 '+(addr||'Местоположение'),false);
-      });
-    }
-  });
-
-  watchId=navigator.geolocation.watchPosition(p=>{
-    myLat=p.coords.latitude;myLon=p.coords.longitude;
-    if(pMarker){pMarker.setLngLat([myLon,myLat]);}
-    if(rideId&&socket&&socket.connected)socket.emit('location:update',{rideId,lat:myLat,lon:myLon});
-    if(assistId&&socket&&socket.connected)socket.emit('location:update',{rideId:assistId,lat:myLat,lon:myLon});
-  },()=>{},{enableHighAccuracy:true,maximumAge:3000,timeout:10000});
-}
-
-function dotEl(c){const e=document.createElement('div');e.style.cssText=`width:20px;height:20px;border-radius:50%;background:${c};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)`;return e}
-
-function addPointLabel(tag,lng,lat,text,isB){
-  const el=document.createElement('div');
-  el.className='map-label'+(isB?' b':'');
-  el.textContent=text;
-  const m=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
-  if(tag==='A')aMarker=m;else bMarker=m;
-}
-
-async function drawRideRoute(sLat,sLon,eLat,eLon){
-  try{
-    const url=OSRM+'/route/v1/driving/'+sLon+','+sLat+';'+eLon+','+eLat+'?overview=full&geometries=geojson&steps=false';
-    const r=await fetch(url);
-    const d=await r.json();
-    if(d.routes&&d.routes.length){
-      const route=d.routes[0];
-      const coords=route.geometry.coordinates;
-      const km=(route.distance/1000).toFixed(1);
-      const min=Math.round(route.duration/60);
-      $('routeKm').textContent=km+' км';
-      $('routeMin').textContent=min+' мин';
-      $('routeInfo').style.display='block';
-      if(rideRouteSrc)rideRouteSrc.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
-      const b=new maplibregl.LngLatBounds();
-      coords.forEach(c=>b.extend(c));
-      map.fitBounds(b,{padding:60,maxZoom:16});
-      return;
-    }
-  }catch(e){}
-  drawFallbackRoute(sLat,sLon,eLat,eLon);
-}
-
-function drawFallbackRoute(sLat,sLon,eLat,eLon){
-  const dx=eLon-sLon,dy=eLat-sLat,dist=Math.sqrt(dx*dx+dy*dy)*111;
-  $('routeKm').textContent='~'+dist.toFixed(1)+' км';
-  $('routeMin').textContent='~'+Math.round(dist/40*60)+' мин';
-  $('routeInfo').style.display='block';
-  const pts=bezier(sLat,sLon,eLat,eLon);
-  if(rideRouteSrc)rideRouteSrc.setData({type:'Feature',geometry:{type:'LineString',coordinates:pts}});
-  const b=new maplibregl.LngLatBounds();b.extend([sLon,sLat]);b.extend([eLon,eLat]);map.fitBounds(b,{padding:60,maxZoom:16});
-}
-
-async function drawDriverRoute(dLat,dLon){
-  if(!map||!mapReady||!driverRouteSrc)return;
-  try{
-    const url=OSRM+'/route/v1/driving/'+dLon+','+dLat+';'+myLon+','+myLat+'?overview=full&geometries=geojson&steps=false';
-    const r=await fetch(url);
-    const d=await r.json();
-    if(d.routes&&d.routes.length){
-      const coords=d.routes[0].geometry.coordinates;
-      driverRouteSrc.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
-      return;
-    }
-  }catch(e){}
-  if(driverRouteSrc){
-    const pts=bezier(dLat,dLon,myLat,myLon);
-    driverRouteSrc.setData({type:'Feature',geometry:{type:'LineString',coordinates:pts}});
-  }
-}
-
-function updDriver(){
-  if(!map||!mapReady||!dMarker||!driverLat)return;
-  dMarker.setLngLat([driverLon,driverLat]);dMarker.getElement().style.display='block';
-  drawDriverRoute(driverLat,driverLon);
-  const b=new maplibregl.LngLatBounds();b.extend([myLon,myLat]);b.extend([driverLon,driverLat]);map.fitBounds(b,{padding:80,maxZoom:15});
-}
-
-function bezier(aLat,aLon,bLat,bLon,N=32){const mx=(aLon+bLon)/2,my2=(aLat+bLat)/2,dx=bLon-aLon,dy=bLat-aLat,f=.15,cx=mx-dy*f,cy=my2+dx*f,pts=[];for(let i=0;i<=N;i++){const t=i/N;pts.push([(1-t)*(1-t)*aLon+2*(1-t)*t*cx+t*t*bLon,(1-t)*(1-t)*aLat+2*(1-t)*t*cy+t*t*bLat])}return pts}
-
-// ═══ Cancel ═══
-$('cancelBtn').onclick=()=>{
-  if(rideId)socket.emit('ride:cancel',{rideId});
-  if(assistId&&socket)socket.emit('assistance:cancel',{assistId});
-  cleanup();showScreen(mode==='taxi'?'request':'assistForm');
+      box.classList.remove('hidden');
+    } catch { box.classList.add('hidden'); toast('Поиск адреса недоступен'); }
+  }, 400);
 };
-$('newRideBtn').onclick=()=>{$('finishedOverlay').style.display='none';rideId=null;driverLat=null;driverLon=null;showScreen(mode==='taxi'?'request':'assistForm')};
 
-// ═══ Socket (taxi) ═════════════════════════════════════════════
-function connectSocket(){
-  if(socket&&socket.connected)return;
-  socket=io(SERVER,{reconnection:true,reconnectionDelay:2000});
-  socket.on('connect',()=>{
-    socket.emit('passenger:register',{name});
-    socket.emit('ride:request',{passengerName:name,pickup:{lat:myLat,lon:myLon},destination:{lat:destLat,lon:destLon}});
-    $('chatTitle').textContent='Чат с водителем';
+/* ════════════════════════ SOCKET.IO ════════════════════════ */
+function connectSocket() {
+  if (state.socket) state.socket.disconnect();
+  state.socket = io(state.serverUrl, { auth: { token: state.token }, transports: ['websocket', 'polling'] });
+
+  state.socket.on('connect_error', (err) => {
+    if (err.message === 'invalid_token' || err.message === 'no_token') { logout(); }
+    else toast('Нет соединения с сервером');
   });
-  socket.on('ride:accepted',d=>{rideId=d.rideId;setStatus('driving','Водитель едет к вам');$('cancelBtn').style.display='none';$('chatFab').style.display='flex';
-    const ic=$('infoCard');ic.style.display='block';
-    Promise.all([rGeo(myLat,myLon),rGeo(destLat,destLon)]).then(([pAddr,dAddr])=>{
-      ic.innerHTML='<div class="row"><span class="label">Откуда</span><span class="value">'+esc(pAddr||`${myLat.toFixed(5)}, ${myLon.toFixed(5)}`)+'</span></div><div class="row"><span class="label">Куда</span><span class="value">'+esc(dAddr||`${destLat.toFixed(5)}, ${destLon.toFixed(5)}`)+'</span></div>';
-    });
+
+  state.socket.on('session:restore_ride', (ride) => { state.activeRide = ride; renderRideState(ride.status); });
+  state.socket.on('session:restore_assist', (a) => { state.activeAssist = a; renderAssistState(a.status); });
+
+  state.socket.on('ride:created', () => renderSheetSearching('ride'));
+  state.socket.on('ride:accepted', (data) => {
+    state.activeRide = { ...(state.activeRide || {}), id: data.rideId, driver_id: data.driverId };
+    state.chatContext = { contextType: 'ride', contextId: data.rideId };
+    toast(`Водитель ${data.driverName} принял заказ`);
+    renderRideAccepted(data.driverName);
   });
-  socket.on('ride:driver_location',d=>{driverLat=d.lat;driverLon=d.lon;updDriver()});
-  socket.on('drivers:locations',d=>{
-    if(!map||!mapReady||!d||!d.drivers)return;
-    Object.keys(driverMarkers).forEach(k=>{driverMarkers[k].remove();delete driverMarkers[k]});
-    d.drivers.forEach(dr=>{
-      if(driverLat&&Math.abs(dr.lat-driverLat)<0.0001&&Math.abs(dr.lon-driverLon)<0.0001)return;
-      const el=document.createElement('div');
-      el.style.cssText='width:28px;height:28px;border-radius:50%;background:#FFA726;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:14px';
-      el.textContent='🚕';
-      const m=new maplibregl.Marker({element:el}).setLngLat([dr.lon,dr.lat]).addTo(map);
-      driverMarkers[dr.id]=m;
-    });
+  state.socket.on('ride:already_taken', () => toast('Заказ уже занят'));
+  state.socket.on('ride:driver_location', (data) => {
+    placeMarker('driver', data.lat, data.lon);
   });
-  socket.on('chat:message',d=>{addMsg(d.from==='driver'?'Водитель':'Вы',d.text,d.from==='driver');if(!chatOpen&&d.from==='driver'){unread++;$('chatBadge').textContent=unread;$('chatBadge').style.display='flex'}});
-  socket.on('ride:finished',()=>{$('finishedOverlay').style.display='flex';$('chatFab').style.display='none';$('finText').textContent='Поездка завершена';$('finSub').textContent='Спасибо за поездку!'});
-  socket.on('disconnect',()=>setStatus('waiting','Переподключение...'));
+  state.socket.on('ride:started', () => renderRideState('in_progress'));
+  state.socket.on('ride:finished', () => { toast('Поездка завершена'); resetRide(); });
+  state.socket.on('ride:cancelled', (data) => { toast(data.by === 'driver' ? 'Водитель отменил поездку' : 'Поездка отменена'); resetRide(); });
+
+  state.socket.on('assistance:created', () => renderSheetSearching('assist'));
+  state.socket.on('assistance:accepted', (data) => {
+    state.activeAssist = { ...(state.activeAssist || {}), id: data.assistId, mechanic_id: data.mechanicId };
+    state.chatContext = { contextType: 'assist', contextId: data.assistId };
+    toast(`Мастер ${data.mechanicName} выехал`);
+    renderAssistAccepted(data.mechanicName);
+  });
+  state.socket.on('assistance:already_taken', () => toast('Заявку уже принял другой мастер'));
+  state.socket.on('assistance:driver_location', (data) => placeMarker('driver', data.lat, data.lon));
+  state.socket.on('assistance:finished', () => { toast('Мастер завершил работу'); resetAssist(); });
+  state.socket.on('assistance:cancelled', (data) => { toast(data.by === 'mechanic' ? 'Мастер отменил заявку' : 'Заявка отменена'); resetAssist(); });
+
+  state.socket.on('chat:message', (m) => appendChatMessage(m));
+  state.socket.on('chat:history', (data) => {
+    document.getElementById('chatMessages').innerHTML = '';
+    data.messages.forEach(appendChatMessage);
+  });
+
+  state.socket.on('error:server', (e) => console.warn('server error', e));
 }
 
-// ═══ Socket (assistance) ═══════════════════════════════════════
-function connectSocketAssist(){
-  if(!myLat||!myLon){
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(p=>{myLat=p.coords.latitude;myLon=p.coords.longitude;doConnectAssist()},()=>doConnectAssist(),{enableHighAccuracy:true,timeout:8000});
-      return;
-    }
+function sendLocationUpdate(lat, lon) {
+  if (!state.socket) return;
+  const payload = { lat, lon };
+  if (state.activeRide) payload.rideId = state.activeRide.id;
+  if (state.activeAssist) payload.assistId = state.activeAssist.id;
+  state.socket.emit('location:update', payload);
+}
+// Пассажир тоже периодически шлёт своё местоположение — полезно для точного пикапа,
+// не мешает водителям (водители видны через отдельный geo-набор на сервере).
+navigator.geolocation && navigator.geolocation.watchPosition(
+  (pos) => sendLocationUpdate(pos.coords.latitude, pos.coords.longitude),
+  () => {}, { enableHighAccuracy: false, maximumAge: 15000, timeout: 10000 }
+);
+
+/* ════════════════════════ НИЖНИЙ ЛИСТ — СОСТОЯНИЯ ════════════════════════ */
+const sheet = document.getElementById('sheet');
+
+function renderSheetIdle() {
+  if (state.activeRide || state.activeAssist) return; // не перерисовываем поверх активного состояния
+  sheet.classList.remove('hidden');
+  const pickupText = state.pickup?.address || (state.pickup ? 'Определяем адрес...' : 'Точка не выбрана — коснитесь карты');
+  const destText = state.destination?.address || (state.destination ? 'Определяем адрес...' : 'Куда едем?');
+
+  if (state.mode === 'ride') {
+    sheet.innerHTML = `
+      <div class="dragHandle"></div>
+      <div class="modeTabs">
+        <div class="modeTab active" id="tabRide">🚕 Поездка</div>
+        <div class="modeTab" id="tabAssist">🔧 Помощь на дороге</div>
+      </div>
+      <div class="addrRow"><div class="dot pickup"></div><div class="addrText ${!state.pickup ? 'placeholder' : ''}">${pickupText}</div></div>
+      <div class="addrRow"><div class="dot dest"></div><div class="addrText ${!state.destination ? 'placeholder' : ''}">${destText}</div></div>
+      <div class="hint">Коснитесь карты, чтобы поставить точку А, затем точку Б. Точку можно перетащить пальцем — это надёжнее автоматической геолокации на старых устройствах.</div>
+      <button class="primaryBtn" id="btnOrder" ${(!state.pickup || !state.destination) ? 'disabled' : ''}>Заказать</button>
+    `;
+    document.getElementById('btnOrder').onclick = orderRide;
+  } else {
+    sheet.innerHTML = `
+      <div class="dragHandle"></div>
+      <div class="modeTabs">
+        <div class="modeTab" id="tabRide">🚕 Поездка</div>
+        <div class="modeTab active" id="tabAssist">🔧 Помощь на дороге</div>
+      </div>
+      <div class="addrRow"><div class="dot pickup"></div><div class="addrText ${!state.pickup ? 'placeholder' : ''}">${pickupText}</div></div>
+      <select id="breakdownType">
+        <option value="battery">Не заводится / аккумулятор</option>
+        <option value="tire">Прокол колеса</option>
+        <option value="fuel">Закончилось топливо</option>
+        <option value="lockout">Заблокирован в машине</option>
+        <option value="other">Другое</option>
+      </select>
+      <input id="carMake" placeholder="Марка автомобиля">
+      <input id="phoneField" type="tel" placeholder="Телефон для связи">
+      <textarea id="descField" placeholder="Опишите проблему"></textarea>
+      <button class="primaryBtn" id="btnAssist" ${!state.pickup ? 'disabled' : ''}>Вызвать мастера</button>
+    `;
+    document.getElementById('btnAssist').onclick = requestAssistance;
   }
-  doConnectAssist();
+  document.getElementById('tabRide').onclick = () => { state.mode = 'ride'; renderSheetIdle(); };
+  document.getElementById('tabAssist').onclick = () => { state.mode = 'assist'; renderSheetIdle(); };
 }
-function doConnectAssist(){
-  socket=io(SERVER,{reconnection:true,reconnectionDelay:2000});
-  socket.on('connect',()=>{
-    socket.emit('passenger:register',{name});
-    socket.emit('assistance:request',{passengerName:name,phone:$('phoneInput').value.trim(),carMake:$('carMakeInput').value.trim(),breakdownType:bType,description:$('descInput').value.trim(),pickup:{lat:myLat||0,lon:myLon||0}});
-    $('chatTitle').textContent='Чат с мастером';
-    const ic=$('infoCard');ic.style.display='block';
-    ic.innerHTML='<div class="row"><span class="label">Авто</span><span class="value">'+esc($('carMakeInput').value.trim())+'</span></div><div class="row"><span class="label">Неисправность</span><span class="value">'+(bType==='electrical'?'Электрическая':'Механическая')+'</span></div><div class="row"><span class="label">Телефон</span><span class="value">'+esc($('phoneInput').value.trim())+'</span></div>';
+
+function renderSheetSearching(kind) {
+  sheet.innerHTML = `
+    <div class="dragHandle"></div>
+    <div class="statusCard">
+      <div class="big">${kind === 'ride' ? 'Ищем водителя...' : 'Ищем мастера...'}</div>
+      <div class="small">Обычно это занимает меньше минуты</div>
+    </div>
+    <button class="actionsRow" style="display:block;" id="btnCancelSearch">
+    </button>
+    <div class="actionsRow"><button class="btnDanger" style="flex:1" id="btnCancelSearch2">Отменить</button></div>
+  `;
+  const cancel = () => kind === 'ride' ? cancelRide('passenger_cancel') : cancelAssistance();
+  document.getElementById('btnCancelSearch2').onclick = cancel;
+}
+
+function renderRideAccepted(driverName) {
+  renderRideState('accepted', driverName);
+}
+function renderAssistAccepted(mechanicName) {
+  renderAssistState('accepted', mechanicName);
+}
+
+function renderRideState(status, driverName) {
+  const label = { accepted: 'Водитель едет к вам', in_progress: 'В пути', searching: 'Ищем водителя...' }[status] || status;
+  sheet.innerHTML = `
+    <div class="dragHandle"></div>
+    <div class="statusCard"><div class="big">${label}</div></div>
+    <div class="driverRow">
+      <div class="avatar">${(driverName || 'В')[0]}</div>
+      <div class="driverInfo"><div class="name">${driverName || 'Водитель'}</div><div class="role">Водитель</div></div>
+    </div>
+    <div class="actionsRow">
+      <button class="btnGreen" id="btnOpenChat">💬 Чат</button>
+      <button class="btnDanger" id="btnCancelRide">Отменить</button>
+    </div>
+  `;
+  document.getElementById('btnOpenChat').onclick = openChat;
+  document.getElementById('btnCancelRide').onclick = () => cancelRide('passenger_cancel');
+}
+
+function renderAssistState(status, mechanicName) {
+  const label = { accepted: 'Мастер выехал', in_progress: 'Мастер в пути', waiting: 'Ищем мастера...' }[status] || status;
+  sheet.innerHTML = `
+    <div class="dragHandle"></div>
+    <div class="statusCard"><div class="big">${label}</div></div>
+    <div class="driverRow">
+      <div class="avatar">${(mechanicName || 'М')[0]}</div>
+      <div class="driverInfo"><div class="name">${mechanicName || 'Мастер'}</div><div class="role">Механик</div></div>
+    </div>
+    <div class="actionsRow">
+      <button class="btnGreen" id="btnOpenChat">💬 Чат</button>
+      <button class="btnDanger" id="btnCancelAssist">Отменить</button>
+    </div>
+  `;
+  document.getElementById('btnOpenChat').onclick = openChat;
+  document.getElementById('btnCancelAssist').onclick = cancelAssistance;
+}
+
+/* ════════════════════════ ДЕЙСТВИЯ ════════════════════════ */
+function orderRide() {
+  if (!state.pickup || !state.destination) return;
+  state.socket.emit('ride:request', {
+    pickup: { lat: state.pickup.lat, lon: state.pickup.lon },
+    pickupAddress: state.pickup.address,
+    destination: { lat: state.destination.lat, lon: state.destination.lon },
+    destinationAddress: state.destination.address,
   });
-  socket.on('assistance:accepted',d=>{assistId=d.assistId;setStatus('driving','Мастер в пути!');$('cancelBtn').style.display='none';$('chatFab').style.display='flex';$('mechCount').style.display='none'});
-  socket.on('assistance:mechanics_count',d=>{$('mechCount').style.display='block';$('mechCountVal').textContent=d.count});
-  socket.on('assistance:driver_location',d=>{driverLat=d.lat;driverLon=d.lon;updDriver()});
-  socket.on('chat:message',d=>{addMsg(d.from==='driver'?(mode==='assist'?'Мастер':'Водитель'):'Вы',d.text,d.from==='driver');if(!chatOpen&&d.from==='driver'){unread++;$('chatBadge').textContent=unread;$('chatBadge').style.display='flex'}});
-  socket.on('assistance:finished',()=>{$('finishedOverlay').style.display='flex';$('chatFab').style.display='none';$('finText').textContent='Помощь завершена';$('finSub').textContent='Мастер завершил работу. Спасибо!'});
-  socket.on('assistance:cancelled',()=>cleanup());
-  socket.on('disconnect',()=>setStatus('waiting','Переподключение...'));
+  renderSheetSearching('ride');
 }
 
-// ═══ Chat ══════════════════════════════════════════════════════
-$('chatFab').onclick=()=>{chatOpen=true;unread=0;$('chatBadge').style.display='none';$('chatModal').classList.add('open');$('chatInput').focus()};
-$('chatBack').onclick=()=>{chatOpen=false;$('chatModal').classList.remove('open')};
-function addMsg(from,text,isDriver){const d=document.createElement('div');d.className='chat-msg '+(isDriver?'driver':'passenger');if(isDriver)d.innerHTML='<div class="from">'+from+'</div>'+esc(text);else d.textContent=text;$('chatMessages').appendChild(d);$('chatMessages').scrollTop=$('chatMessages').scrollHeight}
-$('chatSendBtn').onclick=sendChat;$('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat()});
-function sendChat(){const t=$('chatInput').value.trim();if(!t||!socket)return;socket.emit('chat:message',{text:t});addMsg('Вы',t,false);$('chatInput').value=''}
-
-// ═══ Helpers ═══════════════════════════════════════════════════
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function loadMechanicCount(){
-  const tmp=io(SERVER,{reconnection:false,forceNew:true,transports:['websocket','polling']});
-  tmp.on('connect',()=>{tmp.emit('passenger:register',{name});setTimeout(()=>tmp.disconnect(),3000)});
-  tmp.on('assistance:mechanics_count',d=>{$('mechCount').style.display='block';$('mechCountVal').textContent=d.count});
-}
-function cleanup(){
-  if(watchId)navigator.geolocation.clearWatch(watchId);
-  if(socket){socket.disconnect();socket=null}
-  rideId=null;assistId=null;driverLat=null;driverLon=null;chatOpen=false;unread=0;mapReady=false;
-  $('chatMessages').innerHTML='';$('chatBadge').style.display='none';$('chatModal').classList.remove('open');
-  $('chatFab').style.display='none';$('infoCard').style.display='none';$('finishedOverlay').style.display='none';
-  $('cancelBtn').style.display='block';$('routeInfo').style.display='none';
-  if(dMarker)dMarker.getElement().style.display='none';
-  if(aMarker){aMarker.remove();aMarker=null}
-  if(bMarker){bMarker.remove();bMarker=null}
-  Object.keys(driverMarkers).forEach(k=>{driverMarkers[k].remove();delete driverMarkers[k]});
-  if(map){map.remove();map=null;pMarker=null;dMarker=null;rideRouteSrc=null;driverRouteSrc=null}
-  setStatus('waiting',mode==='taxi'?'Ищем водителя...':'Ищем мастера...');
+function requestAssistance() {
+  if (!state.pickup) return;
+  const breakdownType = document.getElementById('breakdownType').value;
+  const carMake = document.getElementById('carMake').value.trim();
+  const phone = document.getElementById('phoneField').value.trim();
+  const description = document.getElementById('descField').value.trim();
+  state.socket.emit('assistance:request', {
+    pickup: { lat: state.pickup.lat, lon: state.pickup.lon },
+    breakdownType, carMake, phone, description,
+  });
+  renderSheetSearching('assist');
 }
 
-})();
+function cancelRide(reason) {
+  if (!state.activeRide && !state.socket) return;
+  const rideId = state.activeRide?.id;
+  if (rideId) state.socket.emit('ride:cancel', { rideId, reason });
+  resetRide();
+}
+function cancelAssistance() {
+  const assistId = state.activeAssist?.id;
+  if (assistId) state.socket.emit('assistance:cancel', { assistId });
+  resetAssist();
+}
+
+function resetRide() {
+  state.activeRide = null; state.chatContext = null;
+  state.pickup = null; state.destination = null;
+  Object.values(state.markers).forEach((m) => m && m.remove());
+  state.markers = { pickup: null, dest: null, driver: null };
+  renderSheetIdle();
+}
+function resetAssist() {
+  state.activeAssist = null; state.chatContext = null;
+  state.pickup = null;
+  Object.values(state.markers).forEach((m) => m && m.remove());
+  state.markers = { pickup: null, dest: null, driver: null };
+  renderSheetIdle();
+}
+
+/* ════════════════════════ ЧАТ (строго внутри комнаты ride/assist на сервере) ══ */
+function openChat() {
+  document.getElementById('chatOverlay').classList.remove('hidden');
+  document.getElementById('chatMessages').innerHTML = '';
+  if (state.chatContext) state.socket.emit('chat:history', state.chatContext);
+}
+document.getElementById('chatBack').onclick = () => document.getElementById('chatOverlay').classList.add('hidden');
+document.getElementById('chatSend').onclick = sendChat;
+document.getElementById('chatInput').onkeydown = (e) => { if (e.key === 'Enter') sendChat(); };
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !state.chatContext) return;
+  state.socket.emit('chat:send', { ...state.chatContext, text });
+  input.value = '';
+}
+function appendChatMessage(m) {
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (m.senderId === state.user.id ? 'mine' : 'theirs');
+  div.textContent = m.text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ════════════════════════ ВЫХОД ════════════════════════ */
+function logout() {
+  localStorage.removeItem('yanpro_token'); localStorage.removeItem('yanpro_user');
+  location.reload();
+}
+document.getElementById('btnMenu').onclick = () => { if (confirm('Выйти из аккаунта?')) logout(); };
+
 </script>
 </body>
 </html>
